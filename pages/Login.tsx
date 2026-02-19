@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { User } from '../types';
+import { User, UserRole } from '../types';
 import { StorageService } from '../services/storageService';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { RefreshCw } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -20,6 +19,22 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoggingIn(true);
     setError('');
 
+    // Acceso Maestro (Hardcoded Master User)
+    // Funciona como "God Mode" si la base de datos falla o para acceso inicial
+    if (username === 'Gerencia' && password === 'Newland2026') {
+        const masterUser: User = {
+            id: 'master-gerencia',
+            name: 'Gerencia General',
+            username: 'Gerencia',
+            role: UserRole.SUPERADMIN,
+            zone: 'Global',
+            email: 'gerencia@newland.com'
+        };
+        onLogin(masterUser);
+        setLoggingIn(false);
+        return;
+    }
+
     try {
         const users = await StorageService.getUsers();
         const user = users.find(u => u.username === username && u.password === password);
@@ -30,16 +45,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             setError('Usuario o contraseña incorrectos');
         }
     } catch (err) {
-        setError('Error de conexión con la base de datos.');
+        console.error(err);
+        setError('Error de conexión. Verifica tu internet o configuración.');
     } finally {
         setLoggingIn(false);
-    }
-  };
-
-  const handleReset = () => {
-    if (window.confirm('Reiniciar sesión local?')) {
-      localStorage.clear();
-      window.location.reload();
     }
   };
 
@@ -56,8 +65,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
              </div>
         </div>
         <h2 className="mt-6 text-center text-xl font-bold text-gray-900">
-          Acceso al Portal
+          Gestión de Reportes Comerciales
         </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Accede a tu panel de control
+        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -67,7 +79,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               label="Usuario"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin"
+              placeholder="Ej: Gerencia"
               required
             />
             
@@ -81,14 +93,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             />
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">
                 {error}
               </div>
             )}
 
             <div>
               <Button type="submit" className="w-full" isLoading={loggingIn}>
-                Entrar
+                Iniciar Sesión
               </Button>
             </div>
           </form>
@@ -99,11 +111,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                    <div className="w-full border-t border-gray-300"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                   <span className="px-2 bg-white text-gray-500">Nota Importante</span>
+                   <span className="px-2 bg-white text-gray-500">Plataforma Segura</span>
                 </div>
-             </div>
-             <div className="mt-2 text-xs text-center text-gray-500">
-                Asegúrate de configurar la tabla <code>app_users</code> en Supabase con un usuario inicial.
              </div>
           </div>
         </div>
