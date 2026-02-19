@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Question, Report, ReportAnswer } from '../../types';
+import { User, Question, Report, ReportAnswer, QuestionType } from '../../types';
 import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -39,6 +39,18 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
         value: value as string
     }));
 
+    // Asegurar que las preguntas requeridas tipo Check que no fueron tocadas (undefined) se envíen si es necesario,
+    // o simplemente confiar en que el usuario debe interactuar. 
+    // Para checkbox, si no está en answers, asumimos "No" si queremos ser estrictos, 
+    // pero aquí solo enviamos lo que el usuario ha tocado explícitamente o rellenamos por defecto.
+    
+    // Rellenar respuestas de checkbox no marcados como 'No' si no existen en el estado
+    questions.forEach(q => {
+        if (q.type === QuestionType.CHECK && !answers[q.id]) {
+            reportAnswers.push({ questionId: q.id, value: 'No' });
+        }
+    });
+
     const report: Report = {
         id: `rpt-${Date.now()}`,
         userId: currentUser.id,
@@ -77,9 +89,53 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
     <div className="max-w-2xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow border border-gray-200">
       <h3 className="text-xl font-bold text-gray-900 mb-6">Nuevo Reporte Comercial</h3>
       <form onSubmit={handleSubmit} className="space-y-6">
-        {questions.map((q) => (
-            <div key={q.id}>
-                {q.type === 'text' || q.type === 'number' || q.type === 'date' ? (
+        {questions.map((q) => {
+            if (q.type === QuestionType.CURRENCY) {
+                return (
+                    <div key={q.id}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{q.text}</label>
+                        <div className="relative rounded-md shadow-sm">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span className="text-gray-500 sm:text-sm">€</span>
+                            </div>
+                            <input
+                                type="number"
+                                step="0.01"
+                                className="focus:ring-[#FF7900] focus:border-[#FF7900] block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md py-2 border"
+                                placeholder="0.00"
+                                value={answers[q.id] || ''}
+                                onChange={(e) => handleChange(q.id, e.target.value)}
+                                required={q.required}
+                            />
+                        </div>
+                    </div>
+                );
+            }
+
+            if (q.type === QuestionType.CHECK) {
+                return (
+                    <div key={q.id} className="flex items-start pt-2">
+                        <div className="flex items-center h-5">
+                            <input
+                                id={q.id}
+                                type="checkbox"
+                                className="focus:ring-[#FF7900] h-4 w-4 text-[#FF7900] border-gray-300 rounded"
+                                checked={answers[q.id] === 'Sí'}
+                                onChange={(e) => handleChange(q.id, e.target.checked ? 'Sí' : 'No')}
+                            />
+                        </div>
+                        <div className="ml-3 text-sm">
+                            <label htmlFor={q.id} className="font-medium text-gray-700 select-none cursor-pointer">
+                                {q.text}
+                            </label>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Default for text, number, date
+            return (
+                <div key={q.id}>
                     <Input
                         label={q.text}
                         type={q.type}
@@ -87,9 +143,9 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
                         onChange={(e) => handleChange(q.id, e.target.value)}
                         required={q.required}
                     />
-                ) : null}
-            </div>
-        ))}
+                </div>
+            );
+        })}
         <div className="pt-4">
             <Button type="submit" size="lg" className="w-full" isLoading={sending}>
                 Enviar Reporte

@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Report, Question, User, UserRole } from '../../types';
+import { Report, Question, User, UserRole, QuestionType } from '../../types';
 import { StorageService } from '../../services/storageService';
 import { GeminiService } from '../../services/geminiService';
 import { Button } from '../../components/Button';
-import { Download, Sparkles } from 'lucide-react';
+import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
+import { Download, Sparkles, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart } from 'lucide-react';
 
 interface AdminReportsProps {
     currentUser: User;
 }
+
+type ViewMode = 'current' | 'archive' | 'monthly';
 
 export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   const [reports, setReports] = useState<Report[]>([]);
@@ -15,6 +18,10 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // View Control
+  const [viewMode, setViewMode] = useState<ViewMode>('current');
+  const [selectedArchiveWeek, setSelectedArchiveWeek] = useState<string | null>(null);
+
   // Filters
   const [selectedZone, setSelectedZone] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<string>('all');
@@ -35,27 +42,19 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
           StorageService.getQuestions(),
           StorageService.getUsers()
       ]);
-      setReports(r);
+      setReports(r.sort((a,b) => b.timestamp - a.timestamp));
       setQuestions(q);
       setUsers(u);
       setLoading(false);
   };
 
-  // Compute available zones for dropdown (only relevant for Superadmin)
-  const availableZones = useMemo(() => {
-      const zones = new Set<string>();
-      users.forEach(u => {
-          if (u.zone) zones.add(u.zone);
-      });
-      return Array.from(zones);
-  }, [users]);
+  // --- FILTERING LOGIC ---
 
-  // Filter Logic
-  const filteredReports = useMemo(() => {
+  // 1. Basic User/Zone Filtering
+  const baseFilteredReports = useMemo(() => {
       return reports.filter(r => {
           const reportAuthor = users.find(u => u.id === r.userId);
           
-          // 1. Zone Filter
           let matchesZone = false;
           if (isSuper) {
               if (selectedZone === 'all') matchesZone = true;
@@ -64,7 +63,6 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
               matchesZone = reportAuthor?.zone === currentUser.zone;
           }
 
-          // 2. User Filter
           let matchesUser = false;
           if (selectedUser === 'all') matchesUser = true;
           else matchesUser = r.userId === selectedUser;
@@ -73,26 +71,160 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       });
   }, [reports, users, selectedZone, selectedUser, isSuper, currentUser.zone]);
 
-  const filteredUsers = useMemo(() => {
-      return users.filter(u => {
-          if (u.role === UserRole.SUPERADMIN || u.role === UserRole.ADMIN) return false;
-          
-          if (isSuper) {
-              if (selectedZone === 'all') return true;
-              return u.zone === selectedZone;
-          } else {
-              return u.zone === currentUser.zone;
-          }
-      });
-  }, [users, selectedZone, isSuper, currentUser.zone]);
+  // 2. View Mode Filtering
+  const displayedReports = useMemo(() => {
+      const now = new Date();
 
+      if (viewMode === 'current') {
+          // Show only reports from current week
+          return baseFilteredReports.filter(r => isSameWeek(new Date(r.timestamp), now));
+      } 
+      
+      if (viewMode === 'archive' && selectedArchiveWeek) {
+          // Show reports from selected historical week
+          const [year, week] = selectedArchiveWeek.split('-').map(Number);
+          return baseFilteredReports.filter(r => {
+              const d = new Date(r.timestamp);
+              return d.getFullYear() === year && getWeekNumber(d) === week;
+          });
+      }
+
+      // Monthly view uses a different data structure, so for the table list we might return all or none
+      // But we will handle Monthly rendering separately.
+      return baseFilteredReports;
+  }, [baseFilteredReports, viewMode, selectedArchiveWeek]);
+
+
+  // --- AGGREGATION LOGIC (For Monthly View & Archive Folders) ---
+
+  const archiveFolders = useMemo(() => {
+      const folders: Record<string, { year: number, week: number, count: number, start: string, end: string }> = {};
+      
+      baseFilteredReports.forEach(r => {
+          const d = new Date(r.timestamp);
+          const year = d.getFullYear();
+          const week = getWeekNumber(d);
+          const key = `${year}-${week}`;
+
+          // Don't include current week in archive
+          if (isSameWeek(d, new Date())) return;
+
+          if (!folders[key]) {
+              const range = getWeekRange(new Date(d));
+              folders[key] = { year, week, count: 0, start: range.start, end: range.end };
+          }
+          folders[key].count++;
+      });
+
+      return Object.values(folders).sort((a,b) => (b.year * 100 + b.week) - (a.year * 100 + a.week));
+  }, [baseFilteredReports]);
+
+  const monthlyStats = useMemo(() => {
+      const stats: Record<string, { 
+          month: number, year: number, 
+          mobile: number, fixed: number, margin: number, 
+          totalOps: number, closedOps: number 
+      }> = {};
+
+      baseFilteredReports.forEach(r => {
+          const d = new Date(r.timestamp);
+          const key = `${d.getFullYear()}-${d.getMonth()}`;
+
+          if (!stats[key]) {
+              stats[key] = { 
+                  month: d.getMonth(), year: d.getFullYear(), 
+                  mobile: 0, fixed: 0, margin: 0, 
+                  totalOps: 0, closedOps: 0 
+              };
+          }
+
+          const s = stats[key];
+          s.totalOps++;
+          
+          // Check closed sale
+          let isClosed = false;
+          const saleQ = r.answers.find(a => {
+            const q = questions.find(qu => qu.id === a.questionId);
+            return q && q.type === QuestionType.CHECK && q.text.toLowerCase().includes('venta');
+          });
+          if (saleQ && saleQ.value === 'Sí') {
+              isClosed = true;
+              s.closedOps++;
+          }
+
+          // Sum values
+          r.answers.forEach(a => {
+            const q = questions.find(qu => qu.id === a.questionId);
+            if (!q) return;
+            const val = typeof a.value === 'string' ? parseFloat(a.value) : Number(a.value);
+            if (isNaN(val)) return;
+
+            const text = q.text.toLowerCase();
+            if (text.includes('movil') || text.includes('móvil')) s.mobile += val;
+            else if (text.includes('fija')) s.fixed += val;
+            else if (text.includes('margen')) s.margin += val;
+          });
+      });
+
+      return Object.values(stats).sort((a,b) => (b.year * 100 + b.month) - (a.year * 100 + a.month));
+  }, [baseFilteredReports, questions]);
+
+
+  // --- KPI CALCULATIONS (For Current View) ---
+  const currentViewStats = useMemo(() => {
+    let totalMobile = 0;
+    let totalFixed = 0;
+    let totalMargin = 0;
+    let closedCount = 0;
+    
+    // Determine which dataset to use for KPIs
+    const dataset = viewMode === 'monthly' ? baseFilteredReports : displayedReports;
+
+    dataset.forEach(r => {
+        let isSaleClosed = false;
+        const saleQ = r.answers.find(a => {
+            const q = questions.find(qu => qu.id === a.questionId);
+            return q && q.type === QuestionType.CHECK && q.text.toLowerCase().includes('venta');
+        });
+
+        if (saleQ && saleQ.value === 'Sí') {
+            isSaleClosed = true;
+            closedCount++;
+        }
+
+        r.answers.forEach(a => {
+            const q = questions.find(qu => qu.id === a.questionId);
+            if (!q) return;
+            const val = typeof a.value === 'string' ? parseFloat(a.value) : Number(a.value);
+            if (isNaN(val)) return;
+            const text = q.text.toLowerCase();
+            if (text.includes('movil') || text.includes('móvil')) totalMobile += val;
+            else if (text.includes('fija')) totalFixed += val;
+            else if (text.includes('margen')) totalMargin += val;
+        });
+    });
+
+    const totalOps = dataset.length;
+    const conversionRate = totalOps > 0 ? ((closedCount / totalOps) * 100).toFixed(1) : '0';
+
+    return { totalMobile, totalFixed, totalMargin, totalOps, closedCount, conversionRate };
+  }, [displayedReports, baseFilteredReports, questions, viewMode]);
+
+
+  // --- HANDLERS ---
+  const handleAiAnalysis = async () => {
+    setAnalyzing(true);
+    const result = await GeminiService.analyzeReports(displayedReports.slice(0, 20), questions);
+    setAiAnalysis(result);
+    setAnalyzing(false);
+  };
 
   const exportCSV = () => {
+    // Basic CSV export of current view
     const header = ['ID', 'Comercial', 'Zona', 'Fecha', ...questions.map(q => q.text)].join(',');
-    const rows = filteredReports.map(r => {
+    const rows = displayedReports.map(r => {
       const author = users.find(u => u.id === r.userId);
       const zoneName = author?.zone || 'N/A';
-      
       const answers = questions.map(q => {
         const ans = r.answers.find(a => a.questionId === q.id);
         const val = ans ? String(ans.value).replace(/"/g, '""') : '';
@@ -101,134 +233,290 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       const date = new Date(r.timestamp).toLocaleDateString();
       return [`"${r.id}"`, `"${r.userName}"`, `"${zoneName}"`, `"${date}"`, ...answers].join(',');
     });
-
     const csvContent = [header, ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `reportes_${selectedUser}_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `reportes_${viewMode}_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const handleAiAnalysis = async () => {
-    setAnalyzing(true);
-    const result = await GeminiService.analyzeReports(filteredReports.slice(0, 20), questions);
-    setAiAnalysis(result);
-    setAnalyzing(false);
-  };
+  const availableZones = useMemo(() => {
+      const zones = new Set<string>();
+      users.forEach(u => { if (u.zone) zones.add(u.zone); });
+      return Array.from(zones);
+  }, [users]);
 
-  if (loading) return <div className="text-center p-8 text-gray-500">Cargando reportes...</div>;
+  const filteredUsersList = useMemo(() => {
+      return users.filter(u => {
+          if (u.role === UserRole.SUPERADMIN || u.role === UserRole.ADMIN) return false;
+          if (isSuper) return selectedZone === 'all' ? true : u.zone === selectedZone;
+          return u.zone === currentUser.zone;
+      });
+  }, [users, selectedZone, isSuper, currentUser.zone]);
+
+  if (loading) return <div className="text-center p-8 text-gray-500">Cargando datos...</div>;
 
   return (
     <div className="space-y-6">
-      {/* Controls */}
+      {/* 1. Header & Filters */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-end bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-          
-          {isSuper && (
+        <div className="flex flex-col gap-3 w-full md:w-auto">
+          {/* Main Filters Row */}
+          <div className="flex flex-col md:flex-row gap-4">
+             {isSuper && (
+                <div>
+                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Zona</label>
+                   <select
+                     value={selectedZone}
+                     onChange={(e) => setSelectedZone(e.target.value)}
+                     className="block w-full md:w-40 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#FF7900] focus:border-[#FF7900]"
+                   >
+                     <option value="all">Todas</option>
+                     {availableZones.map(z => <option key={z} value={z}>{z}</option>)}
+                   </select>
+                </div>
+             )}
              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Zona</label>
-                <select
-                  value={selectedZone}
-                  onChange={(e) => setSelectedZone(e.target.value)}
-                  className="block w-full md:w-48 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#FF7900] focus:border-[#FF7900] sm:text-sm"
-                >
-                  <option value="all">Todas las Zonas</option>
-                  {availableZones.map(z => (
-                      <option key={z} value={z}>{z}</option>
-                  ))}
-                </select>
+               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Comercial</label>
+               <select
+                 value={selectedUser}
+                 onChange={(e) => setSelectedUser(e.target.value)}
+                 className="block w-full md:w-48 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#FF7900] focus:border-[#FF7900]"
+               >
+                 <option value="all">Todos</option>
+                 {filteredUsersList.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+               </select>
              </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Comercial</label>
-            <select
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-              className="block w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#FF7900] focus:border-[#FF7900] sm:text-sm"
-            >
-              <option value="all">Todos los Comerciales</option>
-              {filteredUsers.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
           </div>
         </div>
-        
-        <div className="flex gap-2">
-          <Button onClick={handleAiAnalysis} variant="secondary" disabled={analyzing || filteredReports.length === 0}>
-             <Sparkles className="h-4 w-4 mr-2 text-purple-600" />
-             {analyzing ? 'Analizando...' : 'Analizar con IA'}
-          </Button>
-          <Button onClick={exportCSV} disabled={filteredReports.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Descargar Excel/CSV
-          </Button>
+
+        {/* View Switcher */}
+        <div className="flex bg-gray-100 p-1 rounded-lg">
+            <button
+                onClick={() => { setViewMode('current'); setSelectedArchiveWeek(null); }}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'current' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Semana Actual
+            </button>
+            <button
+                onClick={() => { setViewMode('archive'); setSelectedArchiveWeek(null); }}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'archive' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Archivo Semanal
+            </button>
+            <button
+                onClick={() => { setViewMode('monthly'); setSelectedArchiveWeek(null); }}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'monthly' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Resumen Mensual
+            </button>
         </div>
       </div>
 
-      {aiAnalysis && (
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-lg border border-orange-100 shadow-sm animate-fade-in-down">
-          <h4 className="text-sm font-bold text-[#FF7900] flex items-center gap-2 mb-2">
-            <Sparkles className="h-4 w-4" />
-            Análisis de Inteligencia Artificial
-          </h4>
-          <p className="text-gray-700 text-sm whitespace-pre-line leading-relaxed">
-            {aiAnalysis}
-          </p>
-        </div>
+      {/* 2. KPI Statistics (Context Aware) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Pipeline Stats */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" /> 
+                  {viewMode === 'current' ? 'Resultados Semana Actual' : viewMode === 'monthly' ? 'Acumulado Total (Vista)' : 'Resultados Históricos'}
+              </h4>
+              <div className="grid grid-cols-3 gap-4 text-center divide-x divide-gray-100">
+                  <div>
+                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1"><Smartphone className="h-3 w-3"/> Móvil</p>
+                      <p className="text-xl font-bold text-gray-900">{currentViewStats.totalMobile}</p>
+                  </div>
+                  <div>
+                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1"><Phone className="h-3 w-3"/> Fijo</p>
+                      <p className="text-xl font-bold text-gray-900">{currentViewStats.totalFixed}</p>
+                  </div>
+                  <div>
+                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1"><Euro className="h-3 w-3"/> Margen</p>
+                      <p className="text-xl font-bold text-blue-600">{currentViewStats.totalMargin.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €</p>
+                  </div>
+              </div>
+          </div>
+
+          {/* Success/Ratio Stats */}
+          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-sm border border-green-200 p-5">
+              <h4 className="text-xs font-bold text-green-800 uppercase tracking-wide mb-4 flex items-center gap-2">
+                  <PieChart className="h-4 w-4" /> Estadística de Éxito
+              </h4>
+              <div className="flex items-center justify-between px-4">
+                   <div className="text-center">
+                       <p className="text-xs text-green-600 mb-1">Operaciones en Marcha</p>
+                       <p className="text-2xl font-bold text-gray-800">{currentViewStats.totalOps - currentViewStats.closedCount}</p>
+                   </div>
+                   <div className="h-10 w-px bg-green-200"></div>
+                   <div className="text-center">
+                       <p className="text-xs text-green-600 mb-1">Ventas Cerradas</p>
+                       <p className="text-2xl font-bold text-green-600">{currentViewStats.closedCount}</p>
+                   </div>
+                   <div className="h-10 w-px bg-green-200"></div>
+                   <div className="text-center">
+                       <p className="text-xs text-green-600 mb-1">Ratio de Conversión</p>
+                       <div className="flex items-center justify-center gap-1">
+                           <p className="text-3xl font-black text-green-700">{currentViewStats.conversionRate}%</p>
+                           {Number(currentViewStats.conversionRate) > 0 && <CheckCircle2 className="h-5 w-5 text-green-500"/>}
+                       </div>
+                   </div>
+              </div>
+          </div>
+      </div>
+
+      {/* 3. Main Content Area */}
+      
+      {/* VIEW: ARCHIVE FOLDERS LIST */}
+      {viewMode === 'archive' && !selectedArchiveWeek && (
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                  <Folder className="h-5 w-5 text-[#FF7900]" />
+                  Carpetas Semanales Archivadas
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {archiveFolders.length === 0 && <p className="text-gray-500 col-span-full">No hay reportes archivados de semanas anteriores.</p>}
+                  {archiveFolders.map((folder) => (
+                      <button 
+                        key={`${folder.year}-${folder.week}`}
+                        onClick={() => setSelectedArchiveWeek(`${folder.year}-${folder.week}`)}
+                        className="flex flex-col p-4 border border-gray-200 rounded-lg hover:border-[#FF7900] hover:bg-orange-50 transition-all text-left group"
+                      >
+                          <div className="flex justify-between items-center w-full mb-2">
+                              <span className="text-xs font-bold text-gray-400 uppercase">Semana {folder.week}, {folder.year}</span>
+                              <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full group-hover:bg-white">{folder.count} Reportes</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-700 font-medium text-sm">
+                              <Calendar className="h-4 w-4 text-[#FF7900]" />
+                              {folder.start} - {folder.end}
+                          </div>
+                      </button>
+                  ))}
+              </div>
+          </div>
       )}
 
-      {/* Data Table */}
-      <div className="bg-white shadow overflow-hidden border-b border-gray-200 sm:rounded-lg overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Info Comercial
-              </th>
-              {questions.map(q => (
-                <th key={q.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {q.text}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredReports.map((report) => {
-              const author = users.find(u => u.id === report.userId);
-              return (
-                <tr key={report.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{new Date(report.timestamp).toLocaleDateString()}</div>
-                    <div className="text-xs text-gray-500 font-bold">{report.userName}</div>
-                    <div className="text-xs text-orange-600">{author?.zone || 'N/A'}</div>
-                    </td>
-                    {questions.map(q => {
-                    const answer = report.answers.find(a => a.questionId === q.id);
+      {/* VIEW: MONTHLY SUMMARY TABLE */}
+      {viewMode === 'monthly' && (
+           <div className="bg-white shadow overflow-hidden border border-gray-200 sm:rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-700">Resumen Mensual Agregado</h3>
+                </div>
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mes / Año</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Reportes</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Móvil</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Fijo</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Margen</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ventas Cerradas</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Éxito</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {monthlyStats.length === 0 && (
+                            <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-500">No hay datos suficientes.</td></tr>
+                        )}
+                        {monthlyStats.map((stat) => (
+                            <tr key={`${stat.year}-${stat.month}`} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                                    {getMonthName(stat.month)} {stat.year}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stat.totalOps}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stat.mobile}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stat.fixed}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{stat.margin.toLocaleString()} €</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-bold">{stat.closedOps}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {stat.totalOps > 0 ? ((stat.closedOps / stat.totalOps) * 100).toFixed(1) : 0}%
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+           </div>
+      )}
+
+      {/* VIEW: TABLE LIST (Used for 'current' and specific 'archive' week) */}
+      {(viewMode === 'current' || (viewMode === 'archive' && selectedArchiveWeek)) && (
+          <>
+            {/* View Header with Back Button if Archive */}
+            {viewMode === 'archive' && (
+                <div className="flex items-center gap-4 mb-2">
+                    <Button variant="secondary" size="sm" onClick={() => setSelectedArchiveWeek(null)}>
+                        ← Volver a Carpetas
+                    </Button>
+                    <h3 className="text-lg font-bold text-gray-800">
+                        Detalle Semana: {selectedArchiveWeek}
+                    </h3>
+                </div>
+            )}
+
+            <div className="flex justify-end gap-2 mb-4">
+                 {/* AI and Download Actions only for Table Views */}
+                <Button onClick={handleAiAnalysis} variant="secondary" disabled={analyzing || displayedReports.length === 0}>
+                    <Sparkles className="h-4 w-4 mr-2 text-purple-600" />
+                    {analyzing ? 'Analizando...' : 'Analizar Vista con IA'}
+                </Button>
+                <Button onClick={exportCSV} disabled={displayedReports.length === 0}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar Vista (Excel)
+                </Button>
+            </div>
+
+            {aiAnalysis && (
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-lg border border-orange-100 shadow-sm animate-fade-in-down mb-6">
+                <h4 className="text-sm font-bold text-[#FF7900] flex items-center gap-2 mb-2">
+                    <Sparkles className="h-4 w-4" />
+                    Análisis de Inteligencia Artificial (Vista Actual)
+                </h4>
+                <p className="text-gray-700 text-sm whitespace-pre-line leading-relaxed">{aiAnalysis}</p>
+                </div>
+            )}
+
+            <div className="bg-white shadow overflow-hidden border-b border-gray-200 sm:rounded-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Info Comercial</th>
+                    {questions.map(q => (
+                        <th key={q.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{q.text}</th>
+                    ))}
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {displayedReports.length === 0 && (
+                         <tr><td colSpan={questions.length + 1} className="px-6 py-12 text-center text-gray-500">No hay reportes en esta vista.</td></tr>
+                    )}
+                    {displayedReports.map((report) => {
+                    const author = users.find(u => u.id === report.userId);
                     return (
-                        <td key={q.id} className="px-6 py-4 text-sm text-gray-500 break-words max-w-xs">
-                        {answer ? answer.value : '-'}
-                        </td>
+                        <tr key={report.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{new Date(report.timestamp).toLocaleDateString()}</div>
+                            <div className="text-xs text-gray-500 font-bold">{report.userName}</div>
+                            <div className="text-xs text-orange-600">{author?.zone || 'N/A'}</div>
+                            </td>
+                            {questions.map(q => {
+                            const answer = report.answers.find(a => a.questionId === q.id);
+                            let displayVal = answer ? answer.value : '-';
+                            if (q.type === QuestionType.CURRENCY && answer) displayVal = `${answer.value} €`;
+                            return (
+                                <td key={q.id} className="px-6 py-4 text-sm text-gray-500 break-words max-w-xs">{displayVal}</td>
+                            );
+                            })}
+                        </tr>
                     );
                     })}
-                </tr>
-            );
-            })}
-            {filteredReports.length === 0 && (
-                <tr>
-                    <td colSpan={questions.length + 1} className="px-6 py-12 text-center text-gray-500">
-                        No hay reportes disponibles para el filtro seleccionado.
-                    </td>
-                </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                </tbody>
+                </table>
+            </div>
+          </>
+      )}
     </div>
   );
 };

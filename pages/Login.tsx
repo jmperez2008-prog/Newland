@@ -79,7 +79,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               label="Usuario"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ej: Gerencia"
+              placeholder=""
               required
             />
             
@@ -88,7 +88,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
+              placeholder=""
               required
             />
 

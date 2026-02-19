@@ -26,8 +26,13 @@ export const AdminDocuments: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 1024 * 1024) {
-        setError('El archivo es demasiado grande. Máximo 1MB para esta versión demo.');
+    // Aumentamos el límite a 15MB
+    // Nota: Almacenar archivos muy grandes como base64 en la base de datos puede ser lento.
+    // Si necesitas archivos más grandes, considera usar Supabase Storage Buckets.
+    const maxSize = 15 * 1024 * 1024; // 15MB
+
+    if (file.size > maxSize) {
+        setError('El archivo es demasiado grande. Máximo 15MB permitidos.');
         return;
     }
 
@@ -49,12 +54,23 @@ export const AdminDocuments: React.FC = () => {
             await StorageService.addDocument(newDoc);
             loadDocuments();
         } catch (err: any) {
-            setError('Error de almacenamiento: ' + err.message);
+            // Manejo de error si la petición es demasiado grande para el servidor
+            if (err.message && err.message.includes('413')) {
+                setError('El archivo es demasiado grande para ser procesado por el servidor.');
+            } else {
+                setError('Error al subir: ' + err.message);
+            }
         } finally {
             setUploading(false);
             e.target.value = '';
         }
     };
+    
+    reader.onerror = () => {
+        setError('Error al leer el archivo.');
+        setUploading(false);
+    };
+
     reader.readAsDataURL(file);
   };
 
@@ -96,8 +112,9 @@ export const AdminDocuments: React.FC = () => {
                     {uploading ? 'Subiendo...' : 'Subir Archivo'}
                 </div>
             </label>
-            {error && <span className="text-sm text-red-600">{error}</span>}
+            {error && <span className="text-sm text-red-600 font-medium">{error}</span>}
         </div>
+        <p className="text-xs text-gray-400 mt-2">Máximo 15MB por archivo.</p>
       </div>
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Report, Question } from '../../types';
+import { User, Report, Question, QuestionType } from '../../types';
 import { StorageService } from '../../services/storageService';
 
 interface HistoryViewProps {
@@ -18,7 +18,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
             StorageService.getReports(),
             StorageService.getQuestions()
         ]);
-        setReports(r.filter(item => item.userId === currentUser.id));
+        setReports(r.filter(item => item.userId === currentUser.id).sort((a,b) => b.timestamp - a.timestamp));
         setQuestions(q);
         setLoading(false);
     };
@@ -46,18 +46,26 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
                   <div className="flex flex-col gap-2">
                       <div className="flex justify-between">
                           <span className="text-sm font-bold text-[#FF7900]">
-                             {new Date(report.timestamp).toLocaleDateString()} {new Date(report.timestamp).toLocaleTimeString()}
+                             {new Date(report.timestamp).toLocaleDateString()} {new Date(report.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </span>
-                          <span className="text-xs text-gray-400 uppercase tracking-wider">ID: {report.id}</span>
+                          <span className="text-xs text-gray-400 uppercase tracking-wider">ID: {report.id.slice(-6)}</span>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-2">
                           {report.answers.map(ans => {
                               const q = questions.find(q => q.id === ans.questionId);
                               if (!q) return null;
+                              
+                              let displayValue = ans.value;
+                              if (q.type === QuestionType.CURRENCY) {
+                                  displayValue = `${ans.value} €`;
+                              }
+
                               return (
                                   <div key={ans.questionId} className="bg-gray-50 p-2 rounded border border-gray-100">
                                       <p className="text-xs text-gray-500 font-medium">{q.text}</p>
-                                      <p className="text-sm text-gray-800">{ans.value}</p>
+                                      <p className={`text-sm text-gray-800 ${q.type === QuestionType.CURRENCY ? 'font-mono font-semibold' : ''}`}>
+                                          {displayValue}
+                                      </p>
                                   </div>
                               );
                           })}

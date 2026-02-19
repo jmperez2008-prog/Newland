@@ -19,7 +19,9 @@ export enum QuestionType {
   TEXT = 'text',
   NUMBER = 'number',
   DATE = 'date',
-  SELECT = 'select'
+  SELECT = 'select',
+  CHECK = 'check',
+  CURRENCY = 'currency'
 }
 
 export interface Question {
