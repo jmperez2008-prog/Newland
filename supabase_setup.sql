@@ -56,7 +56,7 @@ create table if not exists public.documents (
 -- Insertar usuario Maestro (Gerencia) si no existe
 -- Esto asegura que Gerencia aparezca en la lista de usuarios y se pueda gestionar
 insert into public.app_users (id, username, password, name, role, zone, email)
-values ('master-gerencia', 'Gerencia', 'Newland2026', 'Gerencia General', 'SUPERADMIN', 'Global', 'gerencia@newland.com')
+values ('master-gerencia', 'Gerencia', 'Newland2026', 'Gerencia General', 'SUPERADMIN', 'Global', 'gerencia@newlandtelecom.es')
 on conflict (id) do nothing;
 
 -- Habilitar seguridad (RLS)

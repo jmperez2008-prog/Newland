@@ -28,7 +28,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             username: 'Gerencia',
             role: UserRole.SUPERADMIN,
             zone: 'Global',
-            email: 'gerencia@newland.com'
+            email: 'gerencia@newlandtelecom.es'
         };
         onLogin(masterUser);
         setLoggingIn(false);

@@ -3,13 +3,18 @@ import { Question, QuestionType } from '../../types';
 import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { Trash2, Plus, ArrowUp, ArrowDown } from 'lucide-react';
+import { Trash2, Plus, ArrowUp, ArrowDown, Edit2, Save, X } from 'lucide-react';
 
 export const AdminForms: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionType, setNewQuestionType] = useState<QuestionType>(QuestionType.TEXT);
   const [loading, setLoading] = useState(false);
+
+  // State for editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editType, setEditType] = useState<QuestionType>(QuestionType.TEXT);
 
   useEffect(() => {
     loadQuestions();
@@ -45,7 +50,9 @@ export const AdminForms: React.FC = () => {
   };
 
   const removeQuestion = (id: string) => {
-    saveQuestions(questions.filter(q => q.id !== id));
+    if (window.confirm('¿Eliminar esta pregunta? Esto afectará a los reportes históricos visualmente si no coinciden los IDs.')) {
+        saveQuestions(questions.filter(q => q.id !== id));
+    }
   };
 
   const moveQuestion = (index: number, direction: 'up' | 'down') => {
@@ -61,13 +68,38 @@ export const AdminForms: React.FC = () => {
     saveQuestions(newQuestions);
   };
 
+  const startEditing = (q: Question) => {
+      setEditingId(q.id);
+      setEditText(q.text);
+      setEditType(q.type);
+  };
+
+  const cancelEditing = () => {
+      setEditingId(null);
+      setEditText('');
+  };
+
+  const saveEdit = async () => {
+      if (!editingId || !editText) return;
+
+      const updatedQuestions = questions.map(q => {
+          if (q.id === editingId) {
+              return { ...q, text: editText, type: editType };
+          }
+          return q;
+      });
+
+      await saveQuestions(updatedQuestions);
+      setEditingId(null);
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* List of Questions */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium text-gray-900">Estructura del Reporte</h3>
         <p className="text-sm text-gray-500">
-            Define y ordena las preguntas que los comerciales deberán responder.
+            Define, ordena y edita las preguntas que los comerciales deberán responder.
         </p>
         
         <div className="bg-white shadow rounded-md overflow-hidden">
@@ -78,49 +110,100 @@ export const AdminForms: React.FC = () => {
                 {questions.length === 0 && (
                 <div className="p-8 text-center text-gray-500">No hay preguntas configuradas.</div>
                 )}
-                {questions.map((q, index) => (
-                <li key={q.id} className="p-4 flex items-center justify-between group hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                        {/* Reorder Controls */}
-                        <div className="flex flex-col gap-1 mr-2">
-                            <button 
-                                onClick={() => moveQuestion(index, 'up')}
-                                disabled={index === 0}
-                                className={`p-1 rounded hover:bg-gray-200 ${index === 0 ? 'text-gray-200' : 'text-gray-400 hover:text-[#FF7900]'}`}
-                                title="Mover arriba"
-                            >
-                                <ArrowUp className="h-3 w-3" />
-                            </button>
-                            <button 
-                                onClick={() => moveQuestion(index, 'down')}
-                                disabled={index === questions.length - 1}
-                                className={`p-1 rounded hover:bg-gray-200 ${index === questions.length - 1 ? 'text-gray-200' : 'text-gray-400 hover:text-[#FF7900]'}`}
-                                title="Mover abajo"
-                            >
-                                <ArrowDown className="h-3 w-3" />
-                            </button>
-                        </div>
+                {questions.map((q, index) => {
+                    // Render Editing Mode
+                    if (editingId === q.id) {
+                        return (
+                            <li key={q.id} className="p-4 bg-orange-50 border-l-4 border-orange-400">
+                                <div className="flex flex-col gap-3">
+                                    <h4 className="text-xs font-bold text-orange-800 uppercase">Editando Pregunta</h4>
+                                    <Input 
+                                        value={editText} 
+                                        onChange={e => setEditText(e.target.value)} 
+                                        placeholder="Texto de la pregunta"
+                                    />
+                                    <div className="flex gap-2">
+                                        <div className="w-full">
+                                            <select
+                                                value={editType}
+                                                onChange={(e) => setEditType(e.target.value as QuestionType)}
+                                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#FF7900] focus:border-[#FF7900] sm:text-sm"
+                                            >
+                                                <option value={QuestionType.TEXT}>Texto Libre</option>
+                                                <option value={QuestionType.NUMBER}>Número (Simple)</option>
+                                                <option value={QuestionType.DATE}>Fecha</option>
+                                                <option value={QuestionType.CHECK}>Casilla (Sí/No)</option>
+                                                <option value={QuestionType.CURRENCY}>Moneda (€)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-2 mt-2">
+                                        <Button size="sm" onClick={saveEdit}>
+                                            <Save className="h-3 w-3 mr-1" /> Guardar
+                                        </Button>
+                                        <Button size="sm" variant="secondary" onClick={cancelEditing}>
+                                            <X className="h-3 w-3 mr-1" /> Cancelar
+                                        </Button>
+                                    </div>
+                                </div>
+                            </li>
+                        );
+                    }
 
-                        <span className="text-gray-400 font-mono text-xs w-6 text-center">{index + 1}.</span>
-                        
-                        <div>
-                            <p className="text-sm font-medium text-gray-900">{q.text}</p>
-                            <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
-                                <span className="inline-block w-2 h-2 rounded-full bg-gray-300"></span>
-                                {q.type === 'currency' ? 'Moneda (€)' : q.type === 'check' ? 'Check' : q.type}
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <button 
-                        onClick={() => removeQuestion(q.id)}
-                        className="p-2 text-gray-300 hover:text-red-600 transition-colors"
-                        title="Eliminar pregunta"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </button>
-                </li>
-                ))}
+                    // Render Display Mode
+                    return (
+                        <li key={q.id} className="p-4 flex items-center justify-between group hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center gap-3">
+                                {/* Reorder Controls */}
+                                <div className="flex flex-col gap-1 mr-2">
+                                    <button 
+                                        onClick={() => moveQuestion(index, 'up')}
+                                        disabled={index === 0}
+                                        className={`p-1 rounded hover:bg-gray-200 ${index === 0 ? 'text-gray-200' : 'text-gray-400 hover:text-[#FF7900]'}`}
+                                        title="Mover arriba"
+                                    >
+                                        <ArrowUp className="h-3 w-3" />
+                                    </button>
+                                    <button 
+                                        onClick={() => moveQuestion(index, 'down')}
+                                        disabled={index === questions.length - 1}
+                                        className={`p-1 rounded hover:bg-gray-200 ${index === questions.length - 1 ? 'text-gray-200' : 'text-gray-400 hover:text-[#FF7900]'}`}
+                                        title="Mover abajo"
+                                    >
+                                        <ArrowDown className="h-3 w-3" />
+                                    </button>
+                                </div>
+
+                                <span className="text-gray-400 font-mono text-xs w-6 text-center">{index + 1}.</span>
+                                
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900">{q.text}</p>
+                                    <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
+                                        <span className="inline-block w-2 h-2 rounded-full bg-gray-300"></span>
+                                        {q.type === 'currency' ? 'Moneda (€)' : q.type === 'check' ? 'Check' : q.type}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-1">
+                                <button 
+                                    onClick={() => startEditing(q)}
+                                    className="p-2 text-gray-400 hover:text-[#FF7900] transition-colors"
+                                    title="Editar pregunta"
+                                >
+                                    <Edit2 className="h-4 w-4" />
+                                </button>
+                                <button 
+                                    onClick={() => removeQuestion(q.id)}
+                                    className="p-2 text-gray-300 hover:text-red-600 transition-colors"
+                                    title="Eliminar pregunta"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </li>
+                    );
+                })}
             </ul>
           )}
         </div>
@@ -162,7 +245,7 @@ export const AdminForms: React.FC = () => {
             <div className="mt-6 bg-orange-50 p-4 rounded-md border border-orange-100">
             <h4 className="text-sm font-bold text-[#FF7900]">Información</h4>
             <p className="text-xs text-orange-600 mt-1">
-                Utiliza las flechas en la lista de la izquierda para cambiar el orden en que aparecen las preguntas en el reporte.
+                Utiliza las flechas para ordenar. El icono de lápiz permite modificar el texto o tipo de dato de una pregunta existente.
             </p>
             </div>
         </div>
