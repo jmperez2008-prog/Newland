@@ -233,40 +233,65 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
   // --- HANDLERS ---
   const exportXML = () => {
-    let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n<reports>\n';
-    
+    // Excel 2003 XML Format (SpreadsheetML)
+    let xmlContent = '<?xml version="1.0"?>\n';
+    xmlContent += '<?mso-application progid="Excel.Sheet"?>\n';
+    xmlContent += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
+    xmlContent += ' xmlns:o="urn:schemas-microsoft-com:office:office"\n';
+    xmlContent += ' xmlns:x="urn:schemas-microsoft-com:office:excel"\n';
+    xmlContent += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"\n';
+    xmlContent += ' xmlns:html="http://www.w3.org/TR/REC-html40">\n';
+    xmlContent += ' <Worksheet ss:Name="Reportes">\n';
+    xmlContent += '  <Table>\n';
+
+    // Header Row
+    xmlContent += '   <Row>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">ID</Data></Cell>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">Comercial</Data></Cell>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">Zona</Data></Cell>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">Fecha</Data></Cell>\n';
+    questions.forEach(q => {
+        const safeText = q.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        xmlContent += `    <Cell><Data ss:Type="String">${safeText}</Data></Cell>\n`;
+    });
+    xmlContent += '   </Row>\n';
+
+    // Data Rows
     displayedReports.forEach(r => {
       const author = users.find(u => u.id === r.userId);
       const zoneName = author?.zone || 'N/A';
       const date = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
       
-      xmlContent += '  <report>\n';
-      xmlContent += `    <id>${r.id}</id>\n`;
-      xmlContent += `    <comercial>${r.userName}</comercial>\n`;
-      xmlContent += `    <zona>${zoneName}</zona>\n`;
-      xmlContent += `    <fecha>${date}</fecha>\n`;
+      xmlContent += '   <Row>\n';
+      xmlContent += `    <Cell><Data ss:Type="String">${r.id}</Data></Cell>\n`;
+      xmlContent += `    <Cell><Data ss:Type="String">${r.userName}</Data></Cell>\n`;
+      xmlContent += `    <Cell><Data ss:Type="String">${zoneName}</Data></Cell>\n`;
+      xmlContent += `    <Cell><Data ss:Type="String">${date}</Data></Cell>\n`;
       
       questions.forEach(q => {
         const ans = r.answers.find(a => a.questionId === q.id);
         const val = ans ? String(ans.value) : '';
         const escapedVal = val.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-        // Sanitize tag name: replace non-alphanumeric with _, ensure it doesn't start with a number (prepend _)
-        let tagName = q.text.replace(/[^a-zA-Z0-9]/g, '_');
-        if (/^[0-9]/.test(tagName)) tagName = '_' + tagName;
         
-        xmlContent += `    <${tagName}>${escapedVal}</${tagName}>\n`;
+        // Determine type (Number or String)
+        const isNumber = !isNaN(Number(val)) && val !== '' && q.type !== QuestionType.TEXT && q.type !== QuestionType.DATE;
+        const type = isNumber ? 'Number' : 'String';
+        
+        xmlContent += `    <Cell><Data ss:Type="${type}">${escapedVal}</Data></Cell>\n`;
       });
       
-      xmlContent += '  </report>\n';
+      xmlContent += '   </Row>\n';
     });
     
-    xmlContent += '</reports>';
+    xmlContent += '  </Table>\n';
+    xmlContent += ' </Worksheet>\n';
+    xmlContent += '</Workbook>';
     
-    const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8;' });
+    const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `reportes_${viewMode}_${new Date().toISOString().slice(0,10)}.xml`);
+    link.setAttribute('download', `reportes_${viewMode}_${new Date().toISOString().slice(0,10)}.xls`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
