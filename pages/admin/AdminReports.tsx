@@ -232,26 +232,41 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
 
   // --- HANDLERS ---
-  const exportCSV = () => {
-    // Basic CSV export of current view
-    const header = ['ID', 'Comercial', 'Zona', 'Fecha', ...questions.map(q => q.text)].join(',');
-    const rows = displayedReports.map(r => {
+  const exportXML = () => {
+    let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n<reports>\n';
+    
+    displayedReports.forEach(r => {
       const author = users.find(u => u.id === r.userId);
       const zoneName = author?.zone || 'N/A';
-      const answers = questions.map(q => {
-        const ans = r.answers.find(a => a.questionId === q.id);
-        const val = ans ? String(ans.value).replace(/"/g, '""') : '';
-        return `"${val}"`;
-      });
       const date = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      return [`"${r.id}"`, `"${r.userName}"`, `"${zoneName}"`, `"${date}"`, ...answers].join(',');
+      
+      xmlContent += '  <report>\n';
+      xmlContent += `    <id>${r.id}</id>\n`;
+      xmlContent += `    <comercial>${r.userName}</comercial>\n`;
+      xmlContent += `    <zona>${zoneName}</zona>\n`;
+      xmlContent += `    <fecha>${date}</fecha>\n`;
+      
+      questions.forEach(q => {
+        const ans = r.answers.find(a => a.questionId === q.id);
+        const val = ans ? String(ans.value) : '';
+        const escapedVal = val.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+        // Sanitize tag name: replace non-alphanumeric with _, ensure it doesn't start with a number (prepend _)
+        let tagName = q.text.replace(/[^a-zA-Z0-9]/g, '_');
+        if (/^[0-9]/.test(tagName)) tagName = '_' + tagName;
+        
+        xmlContent += `    <${tagName}>${escapedVal}</${tagName}>\n`;
+      });
+      
+      xmlContent += '  </report>\n';
     });
-    const csvContent = [header, ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    xmlContent += '</reports>';
+    
+    const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `reportes_${viewMode}_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `reportes_${viewMode}_${new Date().toISOString().slice(0,10)}.xml`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -530,9 +545,9 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
             )}
 
             <div className="flex justify-end gap-2 mb-4">
-                <Button onClick={exportCSV} disabled={displayedReports.length === 0}>
+                <Button onClick={exportXML} disabled={displayedReports.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
-                    Descargar Vista (Excel)
+                    Descargar Vista (XML)
                 </Button>
             </div>
 
