@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Report, Question, QuestionType } from '../../types';
+import { User, Report, Question, QuestionType, ReportAnswer } from '../../types';
 import { StorageService } from '../../services/storageService';
+import { Edit2, Save, X, CheckCircle } from 'lucide-react';
+import { Button } from '../../components/Button';
+import { Input } from '../../components/Input';
 
 interface HistoryViewProps {
   currentUser: User;
@@ -10,9 +13,17 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
   const [reports, setReports] = useState<Report[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Edit State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAnswers, setEditAnswers] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
+    loadData();
+  }, [currentUser.id]);
+
+  const loadData = async () => {
         setLoading(true);
         const [r, q] = await Promise.all([
             StorageService.getReports(),
@@ -21,9 +32,56 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
         setReports(r.filter(item => item.userId === currentUser.id).sort((a,b) => b.timestamp - a.timestamp));
         setQuestions(q);
         setLoading(false);
-    };
-    load();
-  }, [currentUser.id]);
+  };
+
+  const startEditing = (report: Report) => {
+      setEditingId(report.id);
+      const initialAnswers: Record<string, string> = {};
+      report.answers.forEach(a => {
+          initialAnswers[a.questionId] = String(a.value);
+      });
+      setEditAnswers(initialAnswers);
+  };
+
+  const cancelEditing = () => {
+      setEditingId(null);
+      setEditAnswers({});
+  };
+
+  const handleEditChange = (qId: string, val: string) => {
+      setEditAnswers(prev => ({ ...prev, [qId]: val }));
+  };
+
+  const saveEdit = async (reportId: string) => {
+      const originalReport = reports.find(r => r.id === reportId);
+      if (!originalReport) return;
+
+      setIsSaving(true);
+      const updatedAnswers: ReportAnswer[] = Object.entries(editAnswers).map(([qId, val]) => ({
+          questionId: qId,
+          value: val as string | number
+      }));
+
+      // Ensure checks logic
+      questions.forEach(q => {
+          if (q.type === QuestionType.CHECK && !editAnswers[q.id]) {
+               if (!updatedAnswers.find(a => a.questionId === q.id)) {
+                   updatedAnswers.push({ questionId: q.id, value: 'No' });
+               }
+          }
+      });
+
+      const updatedReport: Report = {
+          ...originalReport,
+          answers: updatedAnswers
+      };
+
+      await StorageService.updateReport(updatedReport);
+      
+      setReports(reports.map(r => r.id === reportId ? updatedReport : r));
+      setIsSaving(false);
+      setEditingId(null);
+  };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Cargando historial...</div>;
 
@@ -34,45 +92,129 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
           Mis Reportes Enviados
         </h3>
         <p className="mt-1 max-w-2xl text-sm text-gray-500">
-          Historial de actividad comercial.
+          Historial de actividad comercial. Puedes editar tus reportes si cometiste un error.
         </p>
       </div>
       <ul className="divide-y divide-gray-200">
           {reports.length === 0 && (
               <li className="px-6 py-8 text-center text-gray-500">No has enviado reportes todavía.</li>
           )}
-          {reports.map((report) => (
-              <li key={report.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50 transition-colors">
+          {reports.map((report) => {
+              const isEditing = editingId === report.id;
+              
+              return (
+              <li key={report.id} className={`px-4 py-4 sm:px-6 transition-colors ${isEditing ? 'bg-orange-50 ring-2 ring-inset ring-[#FF7900] rounded-md my-2' : 'hover:bg-gray-50'}`}>
                   <div className="flex flex-col gap-2">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-start">
                           <span className="text-sm font-bold text-[#FF7900]">
                              {new Date(report.timestamp).toLocaleDateString()} {new Date(report.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </span>
-                          <span className="text-xs text-gray-400 uppercase tracking-wider">ID: {report.id.slice(-6)}</span>
+                          
+                          {!isEditing ? (
+                              <button 
+                                onClick={() => startEditing(report)}
+                                className="text-gray-400 hover:text-[#FF7900] flex items-center text-xs gap-1 transition-colors"
+                              >
+                                  <Edit2 className="h-4 w-4" /> Editar
+                              </button>
+                          ) : (
+                             <span className="text-xs font-bold text-orange-800 uppercase bg-orange-200 px-2 py-1 rounded">Editando</span>
+                          )}
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-2">
-                          {report.answers.map(ans => {
-                              const q = questions.find(q => q.id === ans.questionId);
-                              if (!q) return null;
-                              
-                              let displayValue = ans.value;
-                              if (q.type === QuestionType.CURRENCY) {
-                                  displayValue = `${ans.value} €`;
-                              }
 
-                              return (
-                                  <div key={ans.questionId} className="bg-gray-50 p-2 rounded border border-gray-100">
-                                      <p className="text-xs text-gray-500 font-medium">{q.text}</p>
-                                      <p className={`text-sm text-gray-800 ${q.type === QuestionType.CURRENCY ? 'font-mono font-semibold' : ''}`}>
-                                          {displayValue}
-                                      </p>
-                                  </div>
-                              );
-                          })}
-                      </div>
+                      {/* VIEW MODE */}
+                      {!isEditing && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-2">
+                            {report.answers.map(ans => {
+                                const q = questions.find(q => q.id === ans.questionId);
+                                if (!q) return null;
+                                
+                                let displayValue = ans.value;
+                                if (q.type === QuestionType.CURRENCY) {
+                                    displayValue = `${ans.value} €`;
+                                }
+
+                                return (
+                                    <div key={ans.questionId} className="bg-gray-50 p-2 rounded border border-gray-100">
+                                        <p className="text-xs text-gray-500 font-medium">{q.text}</p>
+                                        <p className={`text-sm text-gray-800 ${q.type === QuestionType.CURRENCY ? 'font-mono font-semibold' : ''}`}>
+                                            {displayValue}
+                                        </p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                      )}
+
+                      {/* EDIT MODE FORM */}
+                      {isEditing && (
+                          <div className="mt-4 space-y-4 bg-white p-4 rounded border border-gray-200">
+                               {questions.map((q) => {
+                                   if (q.type === QuestionType.CURRENCY) {
+                                       return (
+                                           <div key={q.id}>
+                                               <label className="block text-xs font-medium text-gray-500 mb-1">{q.text}</label>
+                                               <div className="relative rounded-md shadow-sm">
+                                                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                       <span className="text-gray-500 sm:text-xs">€</span>
+                                                   </div>
+                                                   <input
+                                                       type="number"
+                                                       step="0.01"
+                                                       className="focus:ring-[#FF7900] focus:border-[#FF7900] block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md py-1 border"
+                                                       value={editAnswers[q.id] || ''}
+                                                       onChange={(e) => handleEditChange(q.id, e.target.value)}
+                                                       required={q.required}
+                                                   />
+                                               </div>
+                                           </div>
+                                       );
+                                   }
+
+                                   if (q.type === QuestionType.CHECK) {
+                                       return (
+                                           <div key={q.id} className="flex items-center pt-2">
+                                               <input
+                                                   id={`edit-${q.id}`}
+                                                   type="checkbox"
+                                                   className="focus:ring-[#FF7900] h-4 w-4 text-[#FF7900] border-gray-300 rounded"
+                                                   checked={editAnswers[q.id] === 'Sí'}
+                                                   onChange={(e) => handleEditChange(q.id, e.target.checked ? 'Sí' : 'No')}
+                                               />
+                                               <label htmlFor={`edit-${q.id}`} className="ml-2 text-sm text-gray-700">
+                                                   {q.text}
+                                               </label>
+                                           </div>
+                                       );
+                                   }
+
+                                   return (
+                                       <div key={q.id}>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">{q.text}</label>
+                                           <input
+                                               type={q.type}
+                                               className="focus:ring-[#FF7900] focus:border-[#FF7900] block w-full sm:text-sm border-gray-300 rounded-md py-1 px-2 border"
+                                               value={editAnswers[q.id] || ''}
+                                               onChange={(e) => handleEditChange(q.id, e.target.value)}
+                                               required={q.required}
+                                           />
+                                       </div>
+                                   );
+                               })}
+
+                               <div className="flex justify-end gap-2 pt-2 border-t mt-2">
+                                   <Button size="sm" variant="secondary" onClick={cancelEditing}>
+                                       <X className="h-3 w-3 mr-1" /> Cancelar
+                                   </Button>
+                                   <Button size="sm" onClick={() => saveEdit(report.id)} isLoading={isSaving}>
+                                       <Save className="h-3 w-3 mr-1" /> Guardar
+                                   </Button>
+                               </div>
+                          </div>
+                      )}
                   </div>
               </li>
-          ))}
+          )})}
       </ul>
     </div>
   );

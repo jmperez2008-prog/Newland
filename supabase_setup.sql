@@ -53,6 +53,28 @@ create table if not exists public.documents (
   data text not null
 );
 
+-- 6. Chat Channels
+create table if not exists public.chat_channels (
+  id text not null primary key,
+  name text not null,
+  type text not null,
+  zone text,
+  participant_ids text[],
+  created_by text not null,
+  created_at bigint not null
+);
+
+-- 7. Chat Messages
+create table if not exists public.chat_messages (
+  id text not null primary key,
+  channel_id text not null,
+  user_id text not null,
+  user_name text not null,
+  content text not null,
+  timestamp bigint not null
+);
+
+
 -- Insertar usuario Maestro (Gerencia) si no existe
 -- Esto asegura que Gerencia aparezca en la lista de usuarios y se pueda gestionar
 insert into public.app_users (id, username, password, name, role, zone, email)
@@ -65,6 +87,8 @@ alter table public.questions enable row level security;
 alter table public.reports enable row level security;
 alter table public.appointments enable row level security;
 alter table public.documents enable row level security;
+alter table public.chat_channels enable row level security;
+alter table public.chat_messages enable row level security;
 
 -- Políticas de acceso (Permitir todo para simplificar demo)
 -- Borramos primero por si ya existen para evitar duplicados
@@ -82,3 +106,9 @@ create policy "Public access appointments" on public.appointments for all using 
 
 drop policy if exists "Public access documents" on public.documents;
 create policy "Public access documents" on public.documents for all using (true);
+
+drop policy if exists "Public access chat_channels" on public.chat_channels;
+create policy "Public access chat_channels" on public.chat_channels for all using (true);
+
+drop policy if exists "Public access chat_messages" on public.chat_messages;
+create policy "Public access chat_messages" on public.chat_messages for all using (true);

@@ -68,3 +68,26 @@ export const TIME_SLOTS = [
   "09:00", "10:00", "11:00", "12:00", 
   "13:00", "15:00", "16:00", "17:00"
 ];
+
+// --- CHAT TYPES ---
+
+export type ChatType = 'global' | 'zone' | 'direct';
+
+export interface ChatChannel {
+  id: string;
+  name: string;
+  type: ChatType;
+  zone?: string; // Only for 'zone' type
+  participantIds: string[]; // User IDs involved (for direct chats) or allowed
+  createdBy: string;
+  createdAt: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  channelId: string;
+  userId: string;
+  userName: string;
+  content: string;
+  timestamp: number;
+}

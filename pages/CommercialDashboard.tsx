@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { PlusCircle, Calendar as CalendarIcon, History, Folder } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, History, Folder, MessageCircle } from 'lucide-react';
 import { NewReport } from './commercial/NewReport';
 import { Booking } from './commercial/Booking';
 import { HistoryView } from './commercial/HistoryView';
 import { CommercialDocuments } from './commercial/CommercialDocuments';
+import { ChatView } from './chat/ChatView';
 
 interface CommercialDashboardProps {
   currentUser: User;
 }
 
-type Tab = 'new' | 'booking' | 'history' | 'documents';
+type Tab = 'new' | 'booking' | 'history' | 'documents' | 'chat';
 
 export const CommercialDashboard: React.FC<CommercialDashboardProps> = ({ currentUser }) => {
   const [activeTab, setActiveTab] = useState<Tab>('new');
@@ -18,6 +19,7 @@ export const CommercialDashboard: React.FC<CommercialDashboardProps> = ({ curren
   const tabs = [
     { id: 'new', label: 'Nuevo Reporte', icon: PlusCircle },
     { id: 'booking', label: 'Reservar Visita', icon: CalendarIcon },
+    { id: 'chat', label: 'Chat', icon: MessageCircle },
     { id: 'history', label: 'Mis Reportes', icon: History },
     { id: 'documents', label: 'Documentos', icon: Folder },
   ];
@@ -57,6 +59,7 @@ export const CommercialDashboard: React.FC<CommercialDashboardProps> = ({ curren
         {activeTab === 'booking' && <Booking currentUser={currentUser} />}
         {activeTab === 'history' && <HistoryView currentUser={currentUser} />}
         {activeTab === 'documents' && <CommercialDocuments />}
+        {activeTab === 'chat' && <ChatView currentUser={currentUser} />}
       </div>
     </div>
   );

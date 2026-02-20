@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Users, FileText, Settings, Calendar, Folder } from 'lucide-react';
+import { Users, FileText, Settings, Calendar, Folder, MessageCircle } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { AdminUsers } from './admin/AdminUsers';
 import { AdminForms } from './admin/AdminForms';
 import { AdminReports } from './admin/AdminReports';
 import { AdminCalendar } from './admin/AdminCalendar';
 import { AdminDocuments } from './admin/AdminDocuments';
+import { ChatView } from './chat/ChatView';
 
-type AdminTab = 'users' | 'forms' | 'reports' | 'calendar' | 'documents';
+type AdminTab = 'users' | 'forms' | 'reports' | 'calendar' | 'documents' | 'chat';
 
 interface AdminDashboardProps {
   currentUser: User;
@@ -19,6 +20,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
   const tabs = [
     { id: 'reports', label: 'Reportes', icon: FileText },
     { id: 'calendar', label: 'Agenda & Visitas', icon: Calendar },
+    { id: 'chat', label: 'Chat Interno', icon: MessageCircle },
     { id: 'documents', label: 'Carpeta', icon: Folder },
     { id: 'users', label: 'Usuarios', icon: Users },
   ];
@@ -67,6 +69,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
         {activeTab === 'reports' && <AdminReports currentUser={currentUser} />}
         {activeTab === 'calendar' && <AdminCalendar currentUser={currentUser} />}
         {activeTab === 'documents' && <AdminDocuments />}
+        {activeTab === 'chat' && <ChatView currentUser={currentUser} />}
       </div>
     </div>
   );

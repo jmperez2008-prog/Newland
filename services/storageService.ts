@@ -1,4 +1,4 @@
-import { User, Question, Report, Appointment, UserRole, QuestionType, SharedDocument } from '../types';
+import { User, Question, Report, Appointment, UserRole, QuestionType, SharedDocument, ChatChannel, ChatMessage, ChatType } from '../types';
 import { supabase } from './supabase';
 
 // Helper to map DB columns (snake_case) to Types (camelCase) if needed, 
@@ -76,6 +76,19 @@ export const StorageService = {
     if (error) console.error('Error adding report:', error);
   },
 
+  updateReport: async (report: Report) => {
+      const dbReport = {
+          user_id: report.userId,
+          user_name: report.userName,
+          timestamp: report.timestamp,
+          answers: report.answers,
+          ai_summary: report.aiSummary
+      };
+      // We only update the fields, ID is used to match
+      const { error } = await supabase.from('reports').update(dbReport).eq('id', report.id);
+      if (error) console.error('Error updating report:', error);
+  },
+
   // Appointments
   getAppointments: async (): Promise<Appointment[]> => {
     const { data, error } = await supabase.from('appointments').select('*');
@@ -135,6 +148,84 @@ export const StorageService = {
   deleteDocument: async (id: string) => {
     const { error } = await supabase.from('documents').delete().eq('id', id);
     if (error) console.error('Error deleting doc:', error);
+  },
+
+  // --- CHAT SYSTEM ---
+
+  getChannels: async (user: User): Promise<ChatChannel[]> => {
+      const { data, error } = await supabase.from('chat_channels').select('*');
+      if (error) return [];
+
+      const allChannels = data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          zone: c.zone,
+          participantIds: c.participant_ids || [],
+          createdBy: c.created_by,
+          createdAt: Number(c.created_at)
+      })) as ChatChannel[];
+
+      // Filter Logic
+      return allChannels.filter(ch => {
+          if (ch.type === 'global') return true; // Everyone sees global
+          if (ch.type === 'zone') {
+              // Visible if user is SuperAdmin (all zones) OR if user matches the zone
+              if (user.role === UserRole.SUPERADMIN) return true;
+              return ch.zone === user.zone;
+          }
+          if (ch.type === 'direct') {
+              // Visible only if user is in participant list
+              return ch.participantIds.includes(user.id);
+          }
+          return false;
+      });
+  },
+
+  createChannel: async (channel: ChatChannel) => {
+      const dbChannel = {
+          id: channel.id,
+          name: channel.name,
+          type: channel.type,
+          zone: channel.zone,
+          participant_ids: channel.participantIds,
+          created_by: channel.createdBy,
+          created_at: channel.createdAt
+      };
+      const { error } = await supabase.from('chat_channels').insert(dbChannel);
+      if (error) console.error('Error creating channel:', error);
+  },
+
+  getMessages: async (channelId: string): Promise<ChatMessage[]> => {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('channel_id', channelId)
+        .order('timestamp', { ascending: true }); // Oldest first
+      
+      if (error) return [];
+
+      return data.map((m: any) => ({
+          id: m.id,
+          channelId: m.channel_id,
+          userId: m.user_id,
+          userName: m.user_name,
+          content: m.content,
+          timestamp: Number(m.timestamp)
+      })) as ChatMessage[];
+  },
+
+  sendMessage: async (msg: ChatMessage) => {
+      const dbMsg = {
+          id: msg.id,
+          channel_id: msg.channelId,
+          user_id: msg.userId,
+          user_name: msg.userName,
+          content: msg.content,
+          timestamp: msg.timestamp
+      };
+      const { error } = await supabase.from('chat_messages').insert(dbMsg);
+      if (error) console.error('Error sending message:', error);
   },
 
   // Auth Session (Local Persistence for Session, DB for Validation)

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Report, Question, User, UserRole, QuestionType } from '../../types';
+import { Report, Question, User, UserRole, QuestionType, ReportAnswer } from '../../types';
 import { StorageService } from '../../services/storageService';
 import { GeminiService } from '../../services/geminiService';
 import { Button } from '../../components/Button';
+import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
-import { Download, Sparkles, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart } from 'lucide-react';
+import { Download, Sparkles, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save } from 'lucide-react';
 
 interface AdminReportsProps {
     currentUser: User;
@@ -28,6 +29,11 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+
+  // Editing State
+  const [editingReport, setEditingReport] = useState<Report | null>(null);
+  const [editAnswers, setEditAnswers] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const isSuper = currentUser.role === UserRole.SUPERADMIN;
 
@@ -242,6 +248,58 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // --- EDITING HANDLERS ---
+  const startEditing = (report: Report) => {
+      setEditingReport(report);
+      // Map existing answers to object for easy form binding
+      const initialAnswers: Record<string, string> = {};
+      
+      // Populate with existing answers
+      report.answers.forEach(a => {
+          initialAnswers[a.questionId] = String(a.value);
+      });
+
+      setEditAnswers(initialAnswers);
+  };
+
+  const handleEditChange = (qId: string, val: string) => {
+      setEditAnswers(prev => ({ ...prev, [qId]: val }));
+  };
+
+  const saveEdit = async () => {
+      if (!editingReport) return;
+      setIsSaving(true);
+
+      const updatedAnswers: ReportAnswer[] = Object.entries(editAnswers).map(([qId, val]) => ({
+          questionId: qId,
+          value: val as string | number
+      }));
+
+      // Ensure required checks are present if missing
+      questions.forEach(q => {
+          if (q.type === QuestionType.CHECK && !editAnswers[q.id]) {
+               // If existing answer was "Sí", it's in editAnswers. If it was "No" or missing, ensure it's "No"
+               // Check if it was already in the update
+               if (!updatedAnswers.find(a => a.questionId === q.id)) {
+                   updatedAnswers.push({ questionId: q.id, value: 'No' });
+               }
+          }
+      });
+
+      const updatedReport: Report = {
+          ...editingReport,
+          answers: updatedAnswers
+      };
+
+      await StorageService.updateReport(updatedReport);
+      
+      // Update local state
+      setReports(reports.map(r => r.id === updatedReport.id ? updatedReport : r));
+      
+      setIsSaving(false);
+      setEditingReport(null);
   };
 
   const availableZones = useMemo(() => {
@@ -482,6 +540,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                 <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Info Comercial</th>
                     {questions.map(q => (
                         <th key={q.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{q.text}</th>
@@ -490,12 +549,21 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {displayedReports.length === 0 && (
-                         <tr><td colSpan={questions.length + 1} className="px-6 py-12 text-center text-gray-500">No hay reportes en esta vista.</td></tr>
+                         <tr><td colSpan={questions.length + 2} className="px-6 py-12 text-center text-gray-500">No hay reportes en esta vista.</td></tr>
                     )}
                     {displayedReports.map((report) => {
                     const author = users.find(u => u.id === report.userId);
                     return (
                         <tr key={report.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <button 
+                                    onClick={() => startEditing(report)}
+                                    className="text-gray-400 hover:text-[#FF7900] transition-colors"
+                                    title="Editar reporte"
+                                >
+                                    <Edit2 className="h-5 w-5" />
+                                </button>
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">{new Date(report.timestamp).toLocaleDateString()}</div>
                             <div className="text-xs text-gray-500 font-bold">{report.userName}</div>
@@ -516,6 +584,91 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                 </table>
             </div>
           </>
+      )}
+
+      {/* EDIT MODAL */}
+      {editingReport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white">
+                      <h3 className="text-lg font-bold text-gray-900">Editar Reporte</h3>
+                      <button onClick={() => setEditingReport(null)} className="text-gray-400 hover:text-gray-500">
+                          <X className="h-6 w-6" />
+                      </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                      <div className="bg-gray-50 p-4 rounded-md text-sm text-gray-700 mb-4">
+                          <p><strong>Comercial:</strong> {editingReport.userName}</p>
+                          <p><strong>Fecha:</strong> {new Date(editingReport.timestamp).toLocaleString()}</p>
+                      </div>
+                      
+                      <form id="edit-form" onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="space-y-4">
+                        {questions.map((q) => {
+                            if (q.type === QuestionType.CURRENCY) {
+                                return (
+                                    <div key={q.id}>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{q.text}</label>
+                                        <div className="relative rounded-md shadow-sm">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span className="text-gray-500 sm:text-sm">€</span>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                className="focus:ring-[#FF7900] focus:border-[#FF7900] block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md py-2 border"
+                                                value={editAnswers[q.id] || ''}
+                                                onChange={(e) => handleEditChange(q.id, e.target.value)}
+                                                required={q.required}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            if (q.type === QuestionType.CHECK) {
+                                return (
+                                    <div key={q.id} className="flex items-start pt-2">
+                                        <div className="flex items-center h-5">
+                                            <input
+                                                id={`edit-${q.id}`}
+                                                type="checkbox"
+                                                className="focus:ring-[#FF7900] h-4 w-4 text-[#FF7900] border-gray-300 rounded"
+                                                checked={editAnswers[q.id] === 'Sí'}
+                                                onChange={(e) => handleEditChange(q.id, e.target.checked ? 'Sí' : 'No')}
+                                            />
+                                        </div>
+                                        <div className="ml-3 text-sm">
+                                            <label htmlFor={`edit-${q.id}`} className="font-medium text-gray-700 select-none cursor-pointer">
+                                                {q.text}
+                                            </label>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div key={q.id}>
+                                    <Input
+                                        label={q.text}
+                                        type={q.type}
+                                        value={editAnswers[q.id] || ''}
+                                        onChange={(e) => handleEditChange(q.id, e.target.value)}
+                                        required={q.required}
+                                    />
+                                </div>
+                            );
+                        })}
+                      </form>
+                  </div>
+                  <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 sticky bottom-0">
+                      <Button variant="secondary" onClick={() => setEditingReport(null)}>Cancelar</Button>
+                      <Button onClick={saveEdit} isLoading={isSaving}>
+                          <Save className="h-4 w-4 mr-2" />
+                          Guardar Cambios
+                      </Button>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );
