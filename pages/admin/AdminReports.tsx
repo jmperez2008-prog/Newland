@@ -4,7 +4,7 @@ import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
-import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase } from 'lucide-react';
+import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi } from 'lucide-react';
 
 interface AdminReportsProps {
     currentUser: User;
@@ -163,7 +163,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
             const text = q.text.toLowerCase();
             if (text.includes('movil') || text.includes('móvil')) s.mobile += val;
-            else if (text.includes('fibra')) s.fixed += val; // Updated to 'fibra'
+            else if (text.includes('fibra')) s.fixed += val; 
             else if (text.includes('margen')) s.margin += val;
           });
       });
@@ -174,9 +174,10 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
   // --- KPI CALCULATIONS (For Current View) ---
   const currentViewStats = useMemo(() => {
-    let mobilePipeline = 0; // Líneas en marcha
-    let mobileSigned = 0;   // Líneas firmadas
-    let totalFiber = 0;     // Fibras (antes totalFixed)
+    let mobilePipeline = 0; // Líneas móviles en marcha
+    let mobileSigned = 0;   // Líneas móviles firmadas
+    let fiberPipeline = 0;  // Fibras en marcha
+    let fiberSigned = 0;    // Fibras firmadas
     let totalMargin = 0;
     let closedCount = 0;
     
@@ -210,8 +211,12 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                     mobilePipeline += val;
                 }
             }
-            else if (text.includes('fibra')) { // Changed from 'fija' to 'fibra'
-                totalFiber += val;
+            else if (text.includes('fibra')) { 
+                if (isSaleClosed) {
+                    fiberSigned += val;
+                } else {
+                    fiberPipeline += val;
+                }
             }
             else if (text.includes('margen')) {
                 totalMargin += val;
@@ -222,7 +227,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     const totalOps = dataset.length;
     const conversionRate = totalOps > 0 ? ((closedCount / totalOps) * 100).toFixed(1) : '0';
 
-    return { mobilePipeline, mobileSigned, totalFiber, totalMargin, totalOps, closedCount, conversionRate };
+    return { mobilePipeline, mobileSigned, fiberPipeline, fiberSigned, totalMargin, totalOps, closedCount, conversionRate };
   }, [displayedReports, baseFilteredReports, questions, viewMode]);
 
 
@@ -385,18 +390,22 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                   <TrendingUp className="h-4 w-4" /> 
                   {viewMode === 'current' ? 'Resultados Semana Actual' : viewMode === 'monthly' ? 'Acumulado Total (Vista)' : 'Resultados Históricos'}
               </h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center divide-x divide-gray-100">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 text-center divide-x divide-gray-100">
                   <div>
                       <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1" title="Líneas Móviles (Operación en Marcha)"><Briefcase className="h-3 w-3"/> Móvil (Marcha)</p>
                       <p className="text-xl font-bold text-gray-700">{currentViewStats.mobilePipeline}</p>
                   </div>
                   <div>
-                      <p className="text-xs text-green-600 mb-1 flex justify-center items-center gap-1" title="Líneas Móviles (Firmadas)"><CheckCircle2 className="h-3 w-3"/> Móvil (Firmado)</p>
+                      <p className="text-xs text-green-600 mb-1 flex justify-center items-center gap-1" title="Líneas Móviles (Firmadas)"><CheckCircle2 className="h-3 w-3"/> Móvil (Firm.)</p>
                       <p className="text-xl font-bold text-green-600">{currentViewStats.mobileSigned}</p>
                   </div>
                   <div>
-                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1" title="Suma de 'Número de fibras'"><Phone className="h-3 w-3"/> Fibras</p>
-                      <p className="text-xl font-bold text-gray-900">{currentViewStats.totalFiber}</p>
+                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1" title="Fibras (Operación en Marcha)"><Wifi className="h-3 w-3"/> Fibra (Marcha)</p>
+                      <p className="text-xl font-bold text-gray-700">{currentViewStats.fiberPipeline}</p>
+                  </div>
+                  <div>
+                      <p className="text-xs text-green-600 mb-1 flex justify-center items-center gap-1" title="Fibras (Firmadas)"><CheckCircle2 className="h-3 w-3"/> Fibra (Firm.)</p>
+                      <p className="text-xl font-bold text-green-600">{currentViewStats.fiberSigned}</p>
                   </div>
                   <div>
                       <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1"><Euro className="h-3 w-3"/> Margen</p>
