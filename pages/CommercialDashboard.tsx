@@ -25,41 +25,45 @@ export const CommercialDashboard: React.FC<CommercialDashboardProps> = ({ curren
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="h-full flex flex-col">
+      <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Panel Comercial</h2>
       </div>
 
-       {/* Tabs */}
-       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as Tab)}
-                className={`
-                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
-                  ${activeTab === tab.id
-                    ? 'border-[#FF7900] text-[#FF7900]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
-                `}
-              >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+       <div className="flex flex-col md:flex-row gap-6 h-full items-start">
+        {/* Left Vertical Navigation */}
+        <aside className="w-full md:w-64 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
+          <nav className="flex flex-col p-2 space-y-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as Tab)}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-colors
+                    ${isActive
+                      ? 'bg-orange-50 text-[#FF7900]'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
+                  `}
+                >
+                  <Icon className={`h-5 w-5 ${isActive ? 'text-[#FF7900]' : 'text-gray-400'}`} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
-      <div className="mt-6">
-        {activeTab === 'new' && <NewReport currentUser={currentUser} onSuccess={() => setActiveTab('history')} />}
-        {activeTab === 'booking' && <Booking currentUser={currentUser} />}
-        {activeTab === 'history' && <HistoryView currentUser={currentUser} />}
-        {activeTab === 'documents' && <CommercialDocuments />}
-        {activeTab === 'chat' && <ChatView currentUser={currentUser} />}
+        {/* Right Content Area */}
+        <div className="flex-1 w-full min-w-0">
+          {activeTab === 'new' && <NewReport currentUser={currentUser} onSuccess={() => setActiveTab('history')} />}
+          {activeTab === 'booking' && <Booking currentUser={currentUser} />}
+          {activeTab === 'history' && <HistoryView currentUser={currentUser} />}
+          {activeTab === 'documents' && <CommercialDocuments />}
+          {activeTab === 'chat' && <ChatView currentUser={currentUser} />}
+        </div>
       </div>
     </div>
   );
