@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Report, Question, User, UserRole, QuestionType, ReportAnswer } from '../../types';
 import { StorageService } from '../../services/storageService';
-import { GeminiService } from '../../services/geminiService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
-import { Download, Sparkles, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save } from 'lucide-react';
+import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save } from 'lucide-react';
 
 interface AdminReportsProps {
     currentUser: User;
@@ -27,9 +26,6 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   const [selectedZone, setSelectedZone] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<string>('all');
   
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-
   // Editing State
   const [editingReport, setEditingReport] = useState<Report | null>(null);
   const [editAnswers, setEditAnswers] = useState<Record<string, string>>({});
@@ -218,13 +214,6 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
 
   // --- HANDLERS ---
-  const handleAiAnalysis = async () => {
-    setAnalyzing(true);
-    const result = await GeminiService.analyzeReports(displayedReports.slice(0, 20), questions);
-    setAiAnalysis(result);
-    setAnalyzing(false);
-  };
-
   const exportCSV = () => {
     // Basic CSV export of current view
     const header = ['ID', 'Comercial', 'Zona', 'Fecha', ...questions.map(q => q.text)].join(',');
@@ -236,7 +225,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
         const val = ans ? String(ans.value).replace(/"/g, '""') : '';
         return `"${val}"`;
       });
-      const date = new Date(r.timestamp).toLocaleDateString();
+      const date = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
       return [`"${r.id}"`, `"${r.userName}"`, `"${zoneName}"`, `"${date}"`, ...answers].join(',');
     });
     const csvContent = [header, ...rows].join('\n');
@@ -515,26 +504,11 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
             )}
 
             <div className="flex justify-end gap-2 mb-4">
-                 {/* AI and Download Actions only for Table Views */}
-                <Button onClick={handleAiAnalysis} variant="secondary" disabled={analyzing || displayedReports.length === 0}>
-                    <Sparkles className="h-4 w-4 mr-2 text-purple-600" />
-                    {analyzing ? 'Analizando...' : 'Analizar Vista con IA'}
-                </Button>
                 <Button onClick={exportCSV} disabled={displayedReports.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     Descargar Vista (Excel)
                 </Button>
             </div>
-
-            {aiAnalysis && (
-                <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-lg border border-orange-100 shadow-sm animate-fade-in-down mb-6">
-                <h4 className="text-sm font-bold text-[#FF7900] flex items-center gap-2 mb-2">
-                    <Sparkles className="h-4 w-4" />
-                    Análisis de Inteligencia Artificial (Vista Actual)
-                </h4>
-                <p className="text-gray-700 text-sm whitespace-pre-line leading-relaxed">{aiAnalysis}</p>
-                </div>
-            )}
 
             <div className="bg-white shadow overflow-hidden border-b border-gray-200 sm:rounded-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -565,7 +539,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                                 </button>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{new Date(report.timestamp).toLocaleDateString()}</div>
+                            <div className="text-sm font-medium text-gray-900">{new Date(report.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                             <div className="text-xs text-gray-500 font-bold">{report.userName}</div>
                             <div className="text-xs text-orange-600">{author?.zone || 'N/A'}</div>
                             </td>
@@ -599,7 +573,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                   <div className="p-6 space-y-4">
                       <div className="bg-gray-50 p-4 rounded-md text-sm text-gray-700 mb-4">
                           <p><strong>Comercial:</strong> {editingReport.userName}</p>
-                          <p><strong>Fecha:</strong> {new Date(editingReport.timestamp).toLocaleString()}</p>
+                          <p><strong>Fecha:</strong> {new Date(editingReport.timestamp).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                       
                       <form id="edit-form" onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="space-y-4">

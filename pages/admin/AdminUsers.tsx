@@ -3,7 +3,7 @@ import { User, UserRole } from '../../types';
 import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { Plus, Trash2, User as UserIcon, Mail, Phone, MapPin, Shield } from 'lucide-react';
+import { Plus, Trash2, User as UserIcon, Mail, Phone, MapPin, Shield, Edit2 } from 'lucide-react';
 
 interface AdminUsersProps {
   currentUser: User;
@@ -14,7 +14,9 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   
+  // We include 'id' in the partial to track if we are editing
   const [newUser, setNewUser] = useState<Partial<User>>({ 
+    id: undefined,
     name: '', 
     username: '', 
     password: '',
@@ -41,7 +43,19 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
     setLoading(false);
   };
 
-  const handleAddUser = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setNewUser({ id: undefined, name: '', username: '', password: '', role: UserRole.COMMERCIAL, phone: '', email: '', zone: '' });
+    setShowForm(false);
+  };
+
+  const handleStartEdit = (user: User) => {
+    setNewUser({ ...user }); // Populate form with existing user data
+    setShowForm(true);
+    // Scroll to top to see form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const assignedZone = isSuper ? newUser.zone : currentUser.zone;
@@ -51,8 +65,9 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
         return;
     }
 
+    // If ID exists, we are editing. If not, we generate a new one.
     const user: User = {
-      id: Date.now().toString(),
+      id: newUser.id || Date.now().toString(), 
       name: newUser.name!,
       username: newUser.username!,
       password: newUser.password!,
@@ -63,8 +78,7 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
     };
 
     await StorageService.saveUser(user);
-    setNewUser({ name: '', username: '', password: '', role: UserRole.COMMERCIAL, phone: '', email: '', zone: '' });
-    setShowForm(false);
+    resetForm();
     loadUsers();
   };
 
@@ -81,7 +95,7 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
         <h3 className="text-lg font-medium text-gray-900">
             {isSuper ? 'Gestión Global de Usuarios' : 'Mi Equipo Comercial'}
         </h3>
-        <Button onClick={() => setShowForm(!showForm)} size="sm">
+        <Button onClick={() => { resetForm(); setShowForm(!showForm); }} size="sm">
           <Plus className="h-4 w-4 mr-2" />
           {isSuper ? 'Nuevo Usuario' : 'Nuevo Comercial'}
         </Button>
@@ -89,8 +103,10 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
 
       {showForm && (
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200 animate-fade-in-down">
-          <h4 className="text-sm font-bold text-gray-700 mb-4">Registrar Nuevo Usuario</h4>
-          <form onSubmit={handleAddUser} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <h4 className="text-sm font-bold text-gray-700 mb-4">
+            {newUser.id ? 'Editar Usuario' : 'Registrar Nuevo Usuario'}
+          </h4>
+          <form onSubmit={handleSaveUser} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
             <Input 
               label="Nombre Completo" 
               value={newUser.name}
@@ -151,8 +167,8 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
             )}
 
             <div className="flex gap-2">
-              <Button type="submit">Guardar</Button>
-              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
+              <Button type="submit">{newUser.id ? 'Actualizar' : 'Guardar'}</Button>
+              <Button type="button" variant="ghost" onClick={resetForm}>Cancelar</Button>
             </div>
           </form>
         </div>
@@ -186,12 +202,22 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
                     </div>
                 </div>
                 {user.role !== UserRole.SUPERADMIN && (
-                    <button 
-                    onClick={() => handleDelete(user.id)}
-                    className="text-red-600 hover:text-red-900 self-end sm:self-center"
-                    >
-                    <Trash2 className="h-5 w-5" />
-                    </button>
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                        <button 
+                            onClick={() => handleStartEdit(user)}
+                            className="p-2 text-gray-400 hover:text-[#FF7900] transition-colors"
+                            title="Editar Usuario"
+                        >
+                            <Edit2 className="h-5 w-5" />
+                        </button>
+                        <button 
+                            onClick={() => handleDelete(user.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Eliminar Usuario"
+                        >
+                            <Trash2 className="h-5 w-5" />
+                        </button>
+                    </div>
                 )}
                 </li>
             ))}

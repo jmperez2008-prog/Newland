@@ -49,6 +49,11 @@ export const AdminCalendar: React.FC<AdminCalendarProps> = ({ currentUser }) => 
     }
   };
 
+  const formatDate = (dateString: string) => {
+      const [year, month, day] = dateString.split('-');
+      return `${day}/${month}/${year}`;
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-500">Cargando agenda...</div>;
 
   return (
@@ -71,7 +76,7 @@ export const AdminCalendar: React.FC<AdminCalendarProps> = ({ currentUser }) => 
                         <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2 text-[#FF7900] font-semibold">
                                     <CalendarIcon className="h-4 w-4" />
-                                    {new Date(apt.date).toLocaleDateString()}
+                                    {formatDate(apt.date)}
                                 </div>
                                 <button onClick={() => cancelAppointment(apt.id)} className="text-gray-400 hover:text-red-500">
                                     <Trash2 className="h-4 w-4" />

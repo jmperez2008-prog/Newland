@@ -56,7 +56,7 @@ export const CommercialDocuments: React.FC = () => {
                         <div className="ml-4 flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900 truncate">{doc.name}</div>
                             <div className="text-xs text-gray-500">
-                                {formatSize(doc.size)} • {new Date(doc.uploadedAt).toLocaleDateString()}
+                                {formatSize(doc.size)} • {new Date(doc.uploadedAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                             </div>
                         </div>
                     </div>

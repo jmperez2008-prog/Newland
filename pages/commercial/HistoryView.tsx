@@ -107,7 +107,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
                   <div className="flex flex-col gap-2">
                       <div className="flex justify-between items-start">
                           <span className="text-sm font-bold text-[#FF7900]">
-                             {new Date(report.timestamp).toLocaleDateString()} {new Date(report.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                             {new Date(report.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })} {new Date(report.timestamp).toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'})}
                           </span>
                           
                           {!isEditing ? (
