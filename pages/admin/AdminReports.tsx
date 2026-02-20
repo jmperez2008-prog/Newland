@@ -4,7 +4,7 @@ import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
-import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save } from 'lucide-react';
+import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase } from 'lucide-react';
 
 interface AdminReportsProps {
     currentUser: User;
@@ -163,7 +163,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
             const text = q.text.toLowerCase();
             if (text.includes('movil') || text.includes('móvil')) s.mobile += val;
-            else if (text.includes('fija')) s.fixed += val;
+            else if (text.includes('fibra')) s.fixed += val; // Updated to 'fibra'
             else if (text.includes('margen')) s.margin += val;
           });
       });
@@ -174,8 +174,9 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
   // --- KPI CALCULATIONS (For Current View) ---
   const currentViewStats = useMemo(() => {
-    let totalMobile = 0;
-    let totalFixed = 0;
+    let mobilePipeline = 0; // Líneas en marcha
+    let mobileSigned = 0;   // Líneas firmadas
+    let totalFiber = 0;     // Fibras (antes totalFixed)
     let totalMargin = 0;
     let closedCount = 0;
     
@@ -200,16 +201,28 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
             const val = typeof a.value === 'string' ? parseFloat(a.value) : Number(a.value);
             if (isNaN(val)) return;
             const text = q.text.toLowerCase();
-            if (text.includes('movil') || text.includes('móvil')) totalMobile += val;
-            else if (text.includes('fija')) totalFixed += val;
-            else if (text.includes('margen')) totalMargin += val;
+            
+            // Logic Split
+            if (text.includes('movil') || text.includes('móvil')) {
+                if (isSaleClosed) {
+                    mobileSigned += val;
+                } else {
+                    mobilePipeline += val;
+                }
+            }
+            else if (text.includes('fibra')) { // Changed from 'fija' to 'fibra'
+                totalFiber += val;
+            }
+            else if (text.includes('margen')) {
+                totalMargin += val;
+            }
         });
     });
 
     const totalOps = dataset.length;
     const conversionRate = totalOps > 0 ? ((closedCount / totalOps) * 100).toFixed(1) : '0';
 
-    return { totalMobile, totalFixed, totalMargin, totalOps, closedCount, conversionRate };
+    return { mobilePipeline, mobileSigned, totalFiber, totalMargin, totalOps, closedCount, conversionRate };
   }, [displayedReports, baseFilteredReports, questions, viewMode]);
 
 
@@ -365,21 +378,25 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       </div>
 
       {/* 2. KPI Statistics (Context Aware) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Pipeline Stats */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" /> 
                   {viewMode === 'current' ? 'Resultados Semana Actual' : viewMode === 'monthly' ? 'Acumulado Total (Vista)' : 'Resultados Históricos'}
               </h4>
-              <div className="grid grid-cols-3 gap-4 text-center divide-x divide-gray-100">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center divide-x divide-gray-100">
                   <div>
-                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1"><Smartphone className="h-3 w-3"/> Móvil</p>
-                      <p className="text-xl font-bold text-gray-900">{currentViewStats.totalMobile}</p>
+                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1" title="Líneas Móviles (Operación en Marcha)"><Briefcase className="h-3 w-3"/> Móvil (Marcha)</p>
+                      <p className="text-xl font-bold text-gray-700">{currentViewStats.mobilePipeline}</p>
                   </div>
                   <div>
-                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1"><Phone className="h-3 w-3"/> Fijo</p>
-                      <p className="text-xl font-bold text-gray-900">{currentViewStats.totalFixed}</p>
+                      <p className="text-xs text-green-600 mb-1 flex justify-center items-center gap-1" title="Líneas Móviles (Firmadas)"><CheckCircle2 className="h-3 w-3"/> Móvil (Firmado)</p>
+                      <p className="text-xl font-bold text-green-600">{currentViewStats.mobileSigned}</p>
+                  </div>
+                  <div>
+                      <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1" title="Suma de 'Número de fibras'"><Phone className="h-3 w-3"/> Fibras</p>
+                      <p className="text-xl font-bold text-gray-900">{currentViewStats.totalFiber}</p>
                   </div>
                   <div>
                       <p className="text-xs text-gray-400 mb-1 flex justify-center items-center gap-1"><Euro className="h-3 w-3"/> Margen</p>
@@ -458,7 +475,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mes / Año</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Reportes</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Móvil</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Fijo</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Fibras</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Margen</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ventas Cerradas</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Éxito</th>
