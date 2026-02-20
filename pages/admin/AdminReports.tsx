@@ -240,47 +240,80 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     const dateStr = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
     // 1. Title & Metadata
-    doc.setFontSize(18);
+    doc.setFontSize(20);
     doc.setTextColor(255, 121, 0); // #FF7900
-    doc.text('Reporte Comercial - Newland Telecom', 14, 20);
+    doc.text('INFORME COMERCIAL', 14, 20);
+    doc.setFontSize(12);
+    doc.text('Newland Telecom', 14, 28);
     
     doc.setFontSize(10);
     doc.setTextColor(100);
     const viewLabel = viewMode === 'current' ? 'Semana Actual' : viewMode === 'monthly' ? 'Resumen Mensual' : `Archivo: ${selectedArchiveWeek}`;
-    doc.text(`Vista: ${viewLabel}`, 14, 28);
-    doc.text(`Fecha de emisión: ${dateStr}`, 14, 33);
-    doc.text(`Zona: ${selectedZone === 'all' ? 'Todas' : selectedZone}`, 14, 38);
+    doc.text(`Vista: ${viewLabel}`, 14, 38);
+    doc.text(`Fecha de emisión: ${dateStr}`, 14, 43);
+    doc.text(`Zona: ${selectedZone === 'all' ? 'Todas' : selectedZone}`, 14, 48);
+    doc.text(`Comercial: ${selectedUser === 'all' ? 'Todos' : users.find(u => u.id === selectedUser)?.name || 'N/A'}`, 14, 53);
 
-    // 2. Statistics Summary
+    // 2. Statistics Summary (KPIs)
     doc.setFontSize(14);
     doc.setTextColor(0);
-    doc.text('Resumen Estadístico', 14, 50);
+    doc.text('Resumen de KPIs', 14, 65);
 
     const statsData = [
-      ['Móvil (Marcha)', currentViewStats.mobilePipeline],
-      ['Móvil (Firmado)', currentViewStats.mobileSigned],
-      ['Fibra (Marcha)', currentViewStats.fiberPipeline],
-      ['Fibra (Firmado)', currentViewStats.fiberSigned],
-      ['Margen Total', `${currentViewStats.totalMargin.toLocaleString('es-ES')} €`],
-      ['Operaciones Totales', currentViewStats.totalOps],
-      ['Ventas Cerradas', currentViewStats.closedCount],
+      ['Móvil (Operaciones en Marcha)', currentViewStats.mobilePipeline],
+      ['Móvil (Ventas Firmadas)', currentViewStats.mobileSigned],
+      ['Fibra (Operaciones en Marcha)', currentViewStats.fiberPipeline],
+      ['Fibra (Ventas Firmadas)', currentViewStats.fiberSigned],
+      ['Margen Total Estimado', `${currentViewStats.totalMargin.toLocaleString('es-ES')} €`],
+      ['Total Operaciones Registradas', currentViewStats.totalOps],
+      ['Ventas Cerradas (Éxito)', currentViewStats.closedCount],
       ['Ratio de Conversión', `${currentViewStats.conversionRate}%`]
     ];
 
     autoTable(doc, {
-      startY: 55,
+      startY: 70,
       head: [['Métrica', 'Valor']],
       body: statsData,
       theme: 'grid',
       headStyles: { fillColor: [255, 121, 0] },
-      columnStyles: { 0: { fontStyle: 'bold' } },
-      margin: { left: 14, right: 100 } // Compact table on the left
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 }, 1: { halign: 'right' } },
+      margin: { left: 14, right: 14 }
     });
 
-    // 3. Detailed Reports Table
-    const finalY = (doc as any).lastAutoTable.finalY || 100;
+    let currentY = (doc as any).lastAutoTable.finalY || 120;
+
+    // 3. Monthly Aggregated Summary (Only if in Monthly View)
+    if (viewMode === 'monthly' && monthlyStats.length > 0) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text('Resumen Mensual Agregado', 14, 20);
+        
+        const monthlyHead = [['Mes / Año', 'Reportes', 'Móvil', 'Fibras', 'Margen', 'Ventas', '% Éxito']];
+        const monthlyBody = monthlyStats.map(stat => [
+            `${getMonthName(stat.month)} ${stat.year}`,
+            stat.totalOps,
+            stat.mobile,
+            stat.fixed,
+            `${stat.margin.toLocaleString()} €`,
+            stat.closedOps,
+            `${stat.totalOps > 0 ? ((stat.closedOps / stat.totalOps) * 100).toFixed(1) : 0}%`
+        ]);
+
+        autoTable(doc, {
+            startY: 25,
+            head: monthlyHead,
+            body: monthlyBody,
+            theme: 'striped',
+            headStyles: { fillColor: [255, 121, 0] },
+            styles: { fontSize: 9 }
+        });
+        currentY = (doc as any).lastAutoTable.finalY || 100;
+    }
+
+    // 4. Detailed Reports Table
+    doc.addPage();
     doc.setFontSize(14);
-    doc.text('Detalle de Reportes', 14, finalY + 15);
+    doc.text('Detalle de Operaciones', 14, 20);
 
     const tableHead = [['Fecha', 'Comercial', 'Zona', ...questions.map(q => q.text)]];
     const tableBody = displayedReports.map(r => {
@@ -299,20 +332,20 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     });
 
     autoTable(doc, {
-      startY: finalY + 20,
+      startY: 25,
       head: tableHead,
       body: tableBody,
       theme: 'striped',
       headStyles: { fillColor: [60, 60, 60] },
-      styles: { fontSize: 8, cellPadding: 2 },
+      styles: { fontSize: 7, cellPadding: 1.5 },
       columnStyles: { 
-          0: { cellWidth: 15 }, // Fecha
-          1: { cellWidth: 20 }, // Comercial
-          2: { cellWidth: 15 }  // Zona
+          0: { cellWidth: 12 }, // Fecha
+          1: { cellWidth: 18 }, // Comercial
+          2: { cellWidth: 12 }  // Zona
       }
     });
 
-    doc.save(`reporte_${viewMode}_${now.toISOString().slice(0,10)}.pdf`);
+    doc.save(`reporte_newland_${viewMode}_${now.toISOString().slice(0,10)}.pdf`);
   };
 
   // --- EDITING HANDLERS ---
