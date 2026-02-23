@@ -6,7 +6,7 @@ import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
-import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi } from 'lucide-react';
+import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi, Github } from 'lucide-react';
 
 interface AdminReportsProps {
     currentUser: User;
@@ -234,86 +234,118 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
 
   // --- HANDLERS ---
+  const exportXML = () => {
+    // Excel 2003 XML Format (SpreadsheetML)
+    let xmlContent = '<?xml version="1.0"?>\n';
+    xmlContent += '<?mso-application progid="Excel.Sheet"?>\n';
+    xmlContent += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
+    xmlContent += ' xmlns:o="urn:schemas-microsoft-com:office:office"\n';
+    xmlContent += ' xmlns:x="urn:schemas-microsoft-com:office:excel"\n';
+    xmlContent += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"\n';
+    xmlContent += ' xmlns:html="http://www.w3.org/TR/REC-html40">\n';
+    xmlContent += ' <Worksheet ss:Name="Reportes">\n';
+    xmlContent += '  <Table>\n';
+
+    // Header Row
+    xmlContent += '   <Row>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">ID</Data></Cell>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">Comercial</Data></Cell>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">Zona</Data></Cell>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">Fecha</Data></Cell>\n';
+    questions.forEach(q => {
+        const safeText = q.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        xmlContent += `    <Cell><Data ss:Type="String">${safeText}</Data></Cell>\n`;
+    });
+    xmlContent += '   </Row>\n';
+
+    // Data Rows
+    displayedReports.forEach(r => {
+      const author = users.find(u => u.id === r.userId);
+      const zoneName = author?.zone || 'N/A';
+      const date = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      
+      xmlContent += '   <Row>\n';
+      xmlContent += `    <Cell><Data ss:Type="String">${r.id}</Data></Cell>\n`;
+      xmlContent += `    <Cell><Data ss:Type="String">${r.userName}</Data></Cell>\n`;
+      xmlContent += `    <Cell><Data ss:Type="String">${zoneName}</Data></Cell>\n`;
+      xmlContent += `    <Cell><Data ss:Type="String">${date}</Data></Cell>\n`;
+      
+      questions.forEach(q => {
+        const ans = r.answers.find(a => a.questionId === q.id);
+        const val = ans ? String(ans.value) : '';
+        const escapedVal = val.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+        
+        // Determine type (Number or String)
+        const isNumber = !isNaN(Number(val)) && val !== '' && q.type !== QuestionType.TEXT && q.type !== QuestionType.DATE;
+        const type = isNumber ? 'Number' : 'String';
+        
+        xmlContent += `    <Cell><Data ss:Type="${type}">${escapedVal}</Data></Cell>\n`;
+      });
+      
+      xmlContent += '   </Row>\n';
+    });
+    
+    xmlContent += '  </Table>\n';
+    xmlContent += ' </Worksheet>\n';
+    xmlContent += '</Workbook>';
+    
+    const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reportes_${viewMode}_${new Date().toISOString().slice(0,10)}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const exportPDF = () => {
     const doc = new jsPDF();
     const now = new Date();
     const dateStr = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
     // 1. Title & Metadata
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     doc.setTextColor(255, 121, 0); // #FF7900
-    doc.text('INFORME COMERCIAL', 14, 20);
-    doc.setFontSize(12);
-    doc.text('Newland Telecom', 14, 28);
+    doc.text('Reporte Comercial - Newland Telecom', 14, 20);
     
     doc.setFontSize(10);
     doc.setTextColor(100);
     const viewLabel = viewMode === 'current' ? 'Semana Actual' : viewMode === 'monthly' ? 'Resumen Mensual' : `Archivo: ${selectedArchiveWeek}`;
-    doc.text(`Vista: ${viewLabel}`, 14, 38);
-    doc.text(`Fecha de emisión: ${dateStr}`, 14, 43);
-    doc.text(`Zona: ${selectedZone === 'all' ? 'Todas' : selectedZone}`, 14, 48);
-    doc.text(`Comercial: ${selectedUser === 'all' ? 'Todos' : users.find(u => u.id === selectedUser)?.name || 'N/A'}`, 14, 53);
+    doc.text(`Vista: ${viewLabel}`, 14, 28);
+    doc.text(`Fecha de emisión: ${dateStr}`, 14, 33);
+    doc.text(`Zona: ${selectedZone === 'all' ? 'Todas' : selectedZone}`, 14, 38);
 
-    // 2. Statistics Summary (KPIs)
+    // 2. Statistics Summary
     doc.setFontSize(14);
     doc.setTextColor(0);
-    doc.text('Resumen de KPIs', 14, 65);
+    doc.text('Resumen Estadístico', 14, 50);
 
     const statsData = [
-      ['Móvil (Operaciones en Marcha)', currentViewStats.mobilePipeline],
-      ['Móvil (Ventas Firmadas)', currentViewStats.mobileSigned],
-      ['Fibra (Operaciones en Marcha)', currentViewStats.fiberPipeline],
-      ['Fibra (Ventas Firmadas)', currentViewStats.fiberSigned],
-      ['Margen Total Estimado', `${currentViewStats.totalMargin.toLocaleString('es-ES')} €`],
-      ['Total Operaciones Registradas', currentViewStats.totalOps],
-      ['Ventas Cerradas (Éxito)', currentViewStats.closedCount],
+      ['Móvil (Marcha)', currentViewStats.mobilePipeline],
+      ['Móvil (Firmado)', currentViewStats.mobileSigned],
+      ['Fibra (Marcha)', currentViewStats.fiberPipeline],
+      ['Fibra (Firmado)', currentViewStats.fiberSigned],
+      ['Margen Total', `${currentViewStats.totalMargin.toLocaleString('es-ES')} €`],
+      ['Operaciones Totales', currentViewStats.totalOps],
+      ['Ventas Cerradas', currentViewStats.closedCount],
       ['Ratio de Conversión', `${currentViewStats.conversionRate}%`]
     ];
 
     autoTable(doc, {
-      startY: 70,
+      startY: 55,
       head: [['Métrica', 'Valor']],
       body: statsData,
       theme: 'grid',
       headStyles: { fillColor: [255, 121, 0] },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 }, 1: { halign: 'right' } },
-      margin: { left: 14, right: 14 }
+      columnStyles: { 0: { fontStyle: 'bold' } },
+      margin: { left: 14, right: 100 } // Compact table on the left
     });
 
-    let currentY = (doc as any).lastAutoTable.finalY || 120;
-
-    // 3. Monthly Aggregated Summary (Only if in Monthly View)
-    if (viewMode === 'monthly' && monthlyStats.length > 0) {
-        doc.addPage();
-        doc.setFontSize(14);
-        doc.text('Resumen Mensual Agregado', 14, 20);
-        
-        const monthlyHead = [['Mes / Año', 'Reportes', 'Móvil', 'Fibras', 'Margen', 'Ventas', '% Éxito']];
-        const monthlyBody = monthlyStats.map(stat => [
-            `${getMonthName(stat.month)} ${stat.year}`,
-            stat.totalOps,
-            stat.mobile,
-            stat.fixed,
-            `${stat.margin.toLocaleString()} €`,
-            stat.closedOps,
-            `${stat.totalOps > 0 ? ((stat.closedOps / stat.totalOps) * 100).toFixed(1) : 0}%`
-        ]);
-
-        autoTable(doc, {
-            startY: 25,
-            head: monthlyHead,
-            body: monthlyBody,
-            theme: 'striped',
-            headStyles: { fillColor: [255, 121, 0] },
-            styles: { fontSize: 9 }
-        });
-        currentY = (doc as any).lastAutoTable.finalY || 100;
-    }
-
-    // 4. Detailed Reports Table
-    doc.addPage();
+    // 3. Detailed Reports Table
+    const finalY = (doc as any).lastAutoTable.finalY || 100;
     doc.setFontSize(14);
-    doc.text('Detalle de Operaciones', 14, 20);
+    doc.text('Detalle de Reportes', 14, finalY + 15);
 
     const tableHead = [['Fecha', 'Comercial', 'Zona', ...questions.map(q => q.text)]];
     const tableBody = displayedReports.map(r => {
@@ -332,20 +364,20 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     });
 
     autoTable(doc, {
-      startY: 25,
+      startY: finalY + 20,
       head: tableHead,
       body: tableBody,
       theme: 'striped',
       headStyles: { fillColor: [60, 60, 60] },
-      styles: { fontSize: 7, cellPadding: 1.5 },
+      styles: { fontSize: 8, cellPadding: 2 },
       columnStyles: { 
-          0: { cellWidth: 12 }, // Fecha
-          1: { cellWidth: 18 }, // Comercial
-          2: { cellWidth: 12 }  // Zona
+          0: { cellWidth: 15 }, // Fecha
+          1: { cellWidth: 20 }, // Comercial
+          2: { cellWidth: 15 }  // Zona
       }
     });
 
-    doc.save(`reporte_newland_${viewMode}_${now.toISOString().slice(0,10)}.pdf`);
+    doc.save(`reporte_${viewMode}_${now.toISOString().slice(0,10)}.pdf`);
   };
 
   // --- EDITING HANDLERS ---
@@ -621,9 +653,17 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
             )}
 
             <div className="flex justify-end gap-2 mb-4">
+                <Button onClick={() => window.open('https://github.com', '_blank')} variant="secondary">
+                    <Github className="h-4 w-4 mr-2" />
+                    Github
+                </Button>
+                <Button onClick={exportXML} disabled={displayedReports.length === 0} variant="secondary">
+                    <Download className="h-4 w-4 mr-2" />
+                    Excel
+                </Button>
                 <Button onClick={exportPDF} disabled={displayedReports.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
-                    Descargar Informe (PDF)
+                    PDF
                 </Button>
             </div>
 
