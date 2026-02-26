@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from './types';
 import { StorageService } from './services/storageService';
+import { isSupabaseConfigured } from './services/supabase';
 import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { CommercialDashboard } from './pages/CommercialDashboard';
@@ -13,6 +14,28 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('');
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error de Configuración</h2>
+          <p className="text-gray-600 mb-6">
+            Faltan las variables de entorno de Supabase. Por favor verifica tu configuración en Vercel o el archivo .env.
+          </p>
+          <div className="text-sm text-gray-500 bg-gray-100 p-3 rounded text-left overflow-x-auto font-mono">
+            VITE_SUPABASE_URL<br/>
+            VITE_SUPABASE_KEY
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     // Current User session is still local for speed

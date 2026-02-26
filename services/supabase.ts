@@ -8,7 +8,9 @@ declare const process: { env: { [key: string]: string | undefined } };
 const envUrl = process.env.VITE_SUPABASE_URL;
 const envKey = process.env.VITE_SUPABASE_KEY;
 
-if (!envUrl || !envKey) {
+export const isSupabaseConfigured = !!(envUrl && envKey);
+
+if (!isSupabaseConfigured) {
   console.warn('Supabase URL or Key missing in environment variables. Please check your Vercel configuration.');
 }
 
