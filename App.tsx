@@ -7,13 +7,15 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { CommercialDashboard } from './pages/CommercialDashboard';
 import { 
   LogOut, Globe, Users, FileText, Settings, Calendar, Folder, 
-  MessageCircle, PlusCircle, History, Mail, ClipboardList 
+  MessageCircle, PlusCircle, History, Mail, ClipboardList, Menu, X as CloseIcon, User as UserIcon
 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserPopoverOpen, setIsUserPopoverOpen] = useState(false);
 
   if (!isSupabaseConfigured) {
     return (
@@ -114,8 +116,66 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-      <aside className="bg-white w-full md:w-64 border-r border-gray-200 flex flex-col h-auto md:h-screen sticky top-0 flex-shrink-0 z-10">
-        <div className="p-6 border-b border-gray-100">
+      {/* Mobile Header */}
+      <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 bg-[#FF7900] rounded-full flex items-center justify-center text-white font-bold text-lg">N</div>
+          <span className="text-xl font-black text-[#FF7900] tracking-tight">Newland</span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* User Bocadillo Trigger */}
+          <button 
+            onClick={() => setIsUserPopoverOpen(!isUserPopoverOpen)}
+            className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors relative"
+          >
+            <UserIcon className="h-5 w-5" />
+            {isUserPopoverOpen && (
+              <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 animate-in fade-in zoom-in duration-200 z-50">
+                {/* Bocadillo Arrow */}
+                <div className="absolute -top-2 right-3 w-4 h-4 bg-white border-t border-l border-gray-100 rotate-45"></div>
+                
+                <div className="relative z-10">
+                  <p className="text-sm font-bold text-gray-900">{currentUser.name}</p>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold mt-1 uppercase tracking-wider ${currentUser.role === UserRole.SUPERADMIN ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'}`}>
+                    {getRoleLabel(currentUser)}
+                  </span>
+                  
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLogout();
+                      }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Cerrar Sesión
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </button>
+
+          {/* Menu Trigger */}
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            {isMobileMenuOpen ? <CloseIcon className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Sidebar / Drawer */}
+      <aside className={`
+        bg-white border-r border-gray-200 flex flex-col flex-shrink-0 z-20
+        fixed inset-y-0 left-0 w-64 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0
+        ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
+      `}>
+        {/* Desktop Header (Hidden on Mobile) */}
+        <div className="hidden md:block p-6 border-b border-gray-100">
           <div className="flex flex-col leading-none mb-4">
              <div className="flex items-center gap-2">
                  <div className="h-8 w-8 bg-[#FF7900] rounded-full flex items-center justify-center text-white font-bold text-lg">N</div>
@@ -145,7 +205,10 @@ const App: React.FC = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setIsMobileMenuOpen(false);
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   isActive 
                     ? 'bg-orange-50 text-[#FF7900]' 
@@ -159,7 +222,8 @@ const App: React.FC = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-200">
+        {/* Desktop Logout (Hidden on Mobile) */}
+        <div className="hidden md:block p-4 border-t border-gray-200">
           <button 
             onClick={handleLogout}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
@@ -169,6 +233,14 @@ const App: React.FC = () => {
           </button>
         </div>
       </aside>
+
+      {/* Overlay for mobile menu */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-10 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
       <main className="flex-1 overflow-y-auto h-screen p-4 md:p-8 bg-gray-50">
         {currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN ? (
