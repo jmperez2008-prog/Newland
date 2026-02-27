@@ -6,7 +6,7 @@ import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
-import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi, Github } from 'lucide-react';
+import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi } from 'lucide-react';
 
 interface AdminReportsProps {
     currentUser: User;
@@ -653,10 +653,6 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
             )}
 
             <div className="flex justify-end gap-2 mb-4">
-                <Button onClick={() => window.open('https://github.com', '_blank')} variant="secondary">
-                    <Github className="h-4 w-4 mr-2" />
-                    Github
-                </Button>
                 <Button onClick={exportXML} disabled={displayedReports.length === 0} variant="secondary">
                     <Download className="h-4 w-4 mr-2" />
                     Excel
