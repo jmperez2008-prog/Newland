@@ -91,3 +91,22 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
 }
+
+export enum RequestStatus {
+  OPEN = 'OPEN',
+  CLOSED = 'CLOSED'
+}
+
+export interface AppRequest {
+  id: string;
+  creatorId: string;
+  creatorName: string;
+  creatorZone?: string;
+  targetRole: UserRole;
+  title: string;
+  description: string;
+  status: RequestStatus;
+  response?: string;
+  createdAt: number;
+  updatedAt: number;
+}

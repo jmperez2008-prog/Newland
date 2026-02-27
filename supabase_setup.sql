@@ -112,3 +112,22 @@ create policy "Public access chat_channels" on public.chat_channels for all usin
 
 drop policy if exists "Public access chat_messages" on public.chat_messages;
 create policy "Public access chat_messages" on public.chat_messages for all using (true);
+
+-- 8. Peticiones
+create table if not exists public.requests (
+  id text not null primary key,
+  creator_id text not null,
+  creator_name text not null,
+  creator_zone text,
+  target_role text not null,
+  title text not null,
+  description text not null,
+  status text not null,
+  response text,
+  created_at bigint not null,
+  updated_at bigint not null
+);
+
+alter table public.requests enable row level security;
+drop policy if exists "Public access requests" on public.requests;
+create policy "Public access requests" on public.requests for all using (true);

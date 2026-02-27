@@ -1,4 +1,4 @@
-import { User, Question, Report, Appointment, UserRole, QuestionType, SharedDocument, ChatChannel, ChatMessage, ChatType } from '../types';
+import { User, Question, Report, Appointment, UserRole, QuestionType, SharedDocument, ChatChannel, ChatMessage, ChatType, AppRequest, RequestStatus } from '../types';
 import { supabase } from './supabase';
 
 // Helper to map DB columns (snake_case) to Types (camelCase) if needed, 
@@ -226,6 +226,75 @@ export const StorageService = {
       };
       const { error } = await supabase.from('chat_messages').insert(dbMsg);
       if (error) console.error('Error sending message:', error);
+  },
+
+  // --- REQUESTS SYSTEM ---
+  getRequests: async (user: User): Promise<AppRequest[]> => {
+    const { data, error } = await supabase.from('requests').select('*');
+    if (error) {
+      console.error('Error fetching requests:', error);
+      return [];
+    }
+
+    const allRequests = data.map((r: any) => ({
+      id: r.id,
+      creatorId: r.creator_id,
+      creatorName: r.creator_name,
+      creatorZone: r.creator_zone,
+      targetRole: r.target_role as UserRole,
+      title: r.title,
+      description: r.description,
+      status: r.status as RequestStatus,
+      response: r.response,
+      createdAt: Number(r.created_at),
+      updatedAt: Number(r.updated_at)
+    })) as AppRequest[];
+
+    // Filter Logic
+    return allRequests.filter(req => {
+      // SuperAdmin sees everything
+      if (user.role === UserRole.SUPERADMIN) return true;
+      
+      // Creator sees their own
+      if (req.creatorId === user.id) return true;
+      
+      // Admin sees requests from their zone
+      if (user.role === UserRole.ADMIN && req.creatorZone === user.zone) return true;
+      
+      // Also, if a request is targeted to the user's role, they might need to see it?
+      // But the requirement says: "solo la puede ver el comercial, su jefe de equipo (admin) y gerencia"
+      // So the logic above covers it.
+      
+      return false;
+    });
+  },
+
+  createRequest: async (request: AppRequest) => {
+    const dbRequest = {
+      id: request.id,
+      creator_id: request.creatorId,
+      creator_name: request.creatorName,
+      creator_zone: request.creatorZone,
+      target_role: request.targetRole,
+      title: request.title,
+      description: request.description,
+      status: request.status,
+      response: request.response,
+      created_at: request.createdAt,
+      updated_at: request.updatedAt
+    };
+    const { error } = await supabase.from('requests').insert(dbRequest);
+    if (error) console.error('Error creating request:', error);
+  },
+
+  updateRequest: async (request: AppRequest) => {
+    const dbRequest = {
+      status: request.status,
+      response: request.response,
+      updated_at: Date.now()
+    };
+    const { error } = await supabase.from('requests').update(dbRequest).eq('id', request.id);
+    if (error) console.error('Error updating request:', error);
   },
 
   // Auth Session (Local Persistence for Session, DB for Validation)

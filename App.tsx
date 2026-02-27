@@ -7,7 +7,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { CommercialDashboard } from './pages/CommercialDashboard';
 import { 
   LogOut, Globe, Users, FileText, Settings, Calendar, Folder, 
-  MessageCircle, PlusCircle, History, Mail 
+  MessageCircle, PlusCircle, History, Mail, ClipboardList 
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -81,6 +81,7 @@ const App: React.FC = () => {
             { id: 'chat', label: 'Chat', icon: MessageCircle },
             { id: 'history', label: 'Mis Reportes', icon: History },
             { id: 'documents', label: 'Documentos', icon: Folder },
+            { id: 'requests', label: 'Peticiones', icon: ClipboardList },
             { id: 'mailpulse', label: 'MailPulse', icon: Mail },
           ];
       }
@@ -92,6 +93,7 @@ const App: React.FC = () => {
         { id: 'chat', label: 'Chat Interno', icon: MessageCircle },
         { id: 'documents', label: 'Carpeta', icon: Folder },
         { id: 'users', label: 'Usuarios', icon: Users },
+        { id: 'requests', label: 'Peticiones', icon: ClipboardList },
         { id: 'mailpulse', label: 'MailPulse', icon: Mail },
       ];
 
