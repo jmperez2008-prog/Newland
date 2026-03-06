@@ -7,7 +7,8 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { CommercialDashboard } from './pages/CommercialDashboard';
 import { 
   LogOut, Globe, Users, FileText, Settings, Calendar, Folder, 
-  MessageCircle, PlusCircle, History, Mail, ClipboardList, Menu, X as CloseIcon, User as UserIcon
+  MessageCircle, PlusCircle, History, Mail, ClipboardList, Menu, X as CloseIcon, User as UserIcon,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -16,6 +17,15 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserPopoverOpen, setIsUserPopoverOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'mailpulse') {
+      setIsSidebarCollapsed(true);
+    } else {
+      setIsSidebarCollapsed(false);
+    }
+  }, [activeTab]);
 
   if (!isSupabaseConfigured) {
     return (
@@ -171,8 +181,9 @@ const App: React.FC = () => {
       {/* Sidebar / Drawer */}
       <aside className={`
         bg-white border-r border-gray-200 flex flex-col flex-shrink-0 z-20
-        fixed inset-y-0 left-0 w-64 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0
-        ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
+        fixed inset-y-0 left-0 transform transition-all duration-300 ease-in-out md:relative
+        ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl w-64' : '-translate-x-full w-64'}
+        ${isSidebarCollapsed ? 'md:-translate-x-full md:w-0 md:border-none md:overflow-hidden' : 'md:translate-x-0 md:w-64'}
       `}>
         {/* Desktop Header (Hidden on Mobile) */}
         <div className="hidden md:block p-6 border-b border-gray-100">
@@ -241,6 +252,17 @@ const App: React.FC = () => {
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
+
+      {/* Toggle Sidebar Button (Desktop) */}
+      <button
+        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        className={`hidden md:flex fixed top-1/2 -translate-y-1/2 z-30 bg-white border border-gray-200 shadow-md rounded-r-lg p-2 hover:bg-gray-50 transition-all duration-300 items-center justify-center ${
+          isSidebarCollapsed ? 'left-0' : 'left-64'
+        }`}
+        title={isSidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}
+      >
+        {isSidebarCollapsed ? <ChevronRight className="w-5 h-5 text-gray-600" /> : <ChevronLeft className="w-5 h-5 text-gray-600" />}
+      </button>
 
       <main className="flex-1 overflow-y-auto h-screen p-4 md:p-8 bg-gray-50">
         {currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN ? (
