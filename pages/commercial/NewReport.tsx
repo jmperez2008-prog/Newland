@@ -3,7 +3,7 @@ import { User, Question, Report, ReportAnswer, QuestionType } from '../../types'
 import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { CheckCircle, Copy } from 'lucide-react';
+import { CheckCircle, Copy, Search, X } from 'lucide-react';
 
 interface NewReportProps {
   currentUser: User;
@@ -18,7 +18,12 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
   const [sending, setSending] = useState(false);
   const [isLostOperation, setIsLostOperation] = useState(false);
   const [lostOperationReason, setLostOperationReason] = useState('');
-  const [loadingLastReport, setLoadingLastReport] = useState(false);
+  
+  // Duplicate Modal State
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [userReports, setUserReports] = useState<Report[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loadingReports, setLoadingReports] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -29,33 +34,40 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
     load();
   }, []);
 
-  const handleDuplicateLastReport = async () => {
-    setLoadingLastReport(true);
+  const handleOpenDuplicateModal = async () => {
+    setIsDuplicateModalOpen(true);
+    setLoadingReports(true);
     try {
       const allReports = await StorageService.getReports();
-      const userReports = allReports
+      const myReports = allReports
         .filter(r => r.userId === currentUser.id)
         .sort((a, b) => b.timestamp - a.timestamp);
-
-      if (userReports.length > 0) {
-        const lastReport = userReports[0];
-        const newAnswers: Record<string, string> = {};
-        lastReport.answers.forEach(ans => {
-          newAnswers[ans.questionId] = String(ans.value);
-        });
-        setAnswers(newAnswers);
-        setIsLostOperation(lastReport.isLostOperation || false);
-        setLostOperationReason(lastReport.lostOperationReason || '');
-      } else {
-        alert('No tienes reportes anteriores para duplicar.');
-      }
+      setUserReports(myReports);
     } catch (error) {
-      console.error('Error duplicando reporte:', error);
-      alert('Hubo un error al intentar duplicar el reporte.');
+      console.error('Error fetching reports:', error);
     } finally {
-      setLoadingLastReport(false);
+      setLoadingReports(false);
     }
   };
+
+  const handleDuplicate = (report: Report) => {
+    const newAnswers: Record<string, string> = {};
+    report.answers.forEach(ans => {
+      newAnswers[ans.questionId] = String(ans.value);
+    });
+    setAnswers(newAnswers);
+    setIsLostOperation(report.isLostOperation || false);
+    setLostOperationReason(report.lostOperationReason || '');
+    setIsDuplicateModalOpen(false);
+    setSearchQuery('');
+  };
+
+  const filteredReports = userReports.filter(r => {
+    const searchLower = searchQuery.toLowerCase();
+    const dateStr = new Date(r.timestamp).toLocaleDateString('es-ES');
+    const answersStr = r.answers.map(a => String(a.value).toLowerCase()).join(' ');
+    return dateStr.includes(searchLower) || answersStr.includes(searchLower);
+  });
 
   const handleChange = (qId: string, value: string) => {
     setAnswers(prev => ({ ...prev, [qId]: value }));
@@ -127,12 +139,11 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
         <Button 
           variant="secondary" 
           size="sm" 
-          onClick={handleDuplicateLastReport}
-          isLoading={loadingLastReport}
-          title="Duplicar el último reporte enviado"
+          onClick={handleOpenDuplicateModal}
+          title="Duplicar un reporte anterior"
         >
           <Copy className="w-4 h-4 mr-2" />
-          Duplicar Último
+          Duplicar Reporte
         </Button>
       </div>
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -237,6 +248,68 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
             </Button>
         </div>
       </form>
+
+      {/* Modal de Duplicación */}
+      {isDuplicateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900">Duplicar Reporte Anterior</h3>
+              <button onClick={() => setIsDuplicateModalOpen(false)} className="text-gray-400 hover:text-gray-500">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-[#FF7900] focus:border-[#FF7900] sm:text-sm"
+                  placeholder="Buscar por fecha, cliente, respuesta..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingReports ? (
+                <div className="text-center text-gray-500 py-8">Cargando reportes...</div>
+              ) : filteredReports.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">No se encontraron reportes.</div>
+              ) : (
+                <ul className="space-y-3">
+                  {filteredReports.map(report => (
+                    <li 
+                      key={report.id} 
+                      className="border border-gray-200 rounded-lg p-4 hover:border-[#FF7900] hover:bg-orange-50 transition-colors cursor-pointer" 
+                      onClick={() => handleDuplicate(report)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-bold text-sm text-gray-900">
+                          {new Date(report.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {report.isLostOperation && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                            Perdida
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600 line-clamp-2">
+                        {report.answers.map(a => {
+                          const q = questions.find(q => q.id === a.questionId);
+                          return q ? `${q.text}: ${a.value}` : String(a.value);
+                        }).join(' | ')}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
