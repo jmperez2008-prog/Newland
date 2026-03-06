@@ -59,7 +59,9 @@ export const StorageService = {
         userName: r.user_name,
         userId: r.user_id,
         // timestamp comes as string/number from DB, ensure number
-        timestamp: Number(r.timestamp)
+        timestamp: Number(r.timestamp),
+        isLostOperation: r.is_lost_operation,
+        lostOperationReason: r.lost_operation_reason
     })) as Report[];
   },
   
@@ -70,7 +72,9 @@ export const StorageService = {
         user_name: report.userName,
         timestamp: report.timestamp,
         answers: report.answers,
-        ai_summary: report.aiSummary
+        ai_summary: report.aiSummary,
+        is_lost_operation: report.isLostOperation || false,
+        lost_operation_reason: report.lostOperationReason || null
     };
     const { error } = await supabase.from('reports').insert(dbReport);
     if (error) console.error('Error adding report:', error);
@@ -82,7 +86,9 @@ export const StorageService = {
           user_name: report.userName,
           timestamp: report.timestamp,
           answers: report.answers,
-          ai_summary: report.aiSummary
+          ai_summary: report.aiSummary,
+          is_lost_operation: report.isLostOperation || false,
+          lost_operation_reason: report.lostOperationReason || null
       };
       // We only update the fields, ID is used to match
       const { error } = await supabase.from('reports').update(dbReport).eq('id', report.id);

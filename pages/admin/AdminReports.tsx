@@ -31,6 +31,8 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   // Editing State
   const [editingReport, setEditingReport] = useState<Report | null>(null);
   const [editAnswers, setEditAnswers] = useState<Record<string, string>>({});
+  const [editIsLostOperation, setEditIsLostOperation] = useState(false);
+  const [editLostOperationReason, setEditLostOperationReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const isSuper = currentUser.role === UserRole.SUPERADMIN;
@@ -252,6 +254,8 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     xmlContent += '    <Cell><Data ss:Type="String">Comercial</Data></Cell>\n';
     xmlContent += '    <Cell><Data ss:Type="String">Zona</Data></Cell>\n';
     xmlContent += '    <Cell><Data ss:Type="String">Fecha</Data></Cell>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">Operación Perdida</Data></Cell>\n';
+    xmlContent += '    <Cell><Data ss:Type="String">Motivo Pérdida</Data></Cell>\n';
     questions.forEach(q => {
         const safeText = q.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         xmlContent += `    <Cell><Data ss:Type="String">${safeText}</Data></Cell>\n`;
@@ -269,6 +273,8 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       xmlContent += `    <Cell><Data ss:Type="String">${r.userName}</Data></Cell>\n`;
       xmlContent += `    <Cell><Data ss:Type="String">${zoneName}</Data></Cell>\n`;
       xmlContent += `    <Cell><Data ss:Type="String">${date}</Data></Cell>\n`;
+      xmlContent += `    <Cell><Data ss:Type="String">${r.isLostOperation ? 'Sí' : 'No'}</Data></Cell>\n`;
+      xmlContent += `    <Cell><Data ss:Type="String">${r.lostOperationReason ? r.lostOperationReason.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}</Data></Cell>\n`;
       
       questions.forEach(q => {
         const ans = r.answers.find(a => a.questionId === q.id);
@@ -347,11 +353,12 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     doc.setFontSize(14);
     doc.text('Detalle de Reportes', 14, finalY + 15);
 
-    const tableHead = [['Fecha', 'Comercial', 'Zona', ...questions.map(q => q.text)]];
+    const tableHead = [['Fecha', 'Comercial', 'Zona', 'Op. Perdida', ...questions.map(q => q.text)]];
     const tableBody = displayedReports.map(r => {
         const author = users.find(u => u.id === r.userId);
         const zoneName = author?.zone || 'N/A';
         const date = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        const lostOp = r.isLostOperation ? 'Sí' : 'No';
         
         const answers = questions.map(q => {
             const ans = r.answers.find(a => a.questionId === q.id);
@@ -360,7 +367,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
             return val;
         });
 
-        return [date, r.userName, zoneName, ...answers];
+        return [date, r.userName, zoneName, lostOp, ...answers];
     });
 
     autoTable(doc, {
@@ -392,6 +399,8 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       });
 
       setEditAnswers(initialAnswers);
+      setEditIsLostOperation(report.isLostOperation || false);
+      setEditLostOperationReason(report.lostOperationReason || '');
   };
 
   const handleEditChange = (qId: string, val: string) => {
@@ -420,7 +429,9 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
 
       const updatedReport: Report = {
           ...editingReport,
-          answers: updatedAnswers
+          answers: updatedAnswers,
+          isLostOperation: editIsLostOperation,
+          lostOperationReason: editIsLostOperation ? editLostOperationReason : undefined
       };
 
       await StorageService.updateReport(updatedReport);
@@ -669,6 +680,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                     <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Info Comercial</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                     {questions.map(q => (
                         <th key={q.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{q.text}</th>
                     ))}
@@ -676,7 +688,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {displayedReports.length === 0 && (
-                         <tr><td colSpan={questions.length + 2} className="px-6 py-12 text-center text-gray-500">No hay reportes en esta vista.</td></tr>
+                         <tr><td colSpan={questions.length + 3} className="px-6 py-12 text-center text-gray-500">No hay reportes en esta vista.</td></tr>
                     )}
                     {displayedReports.map((report) => {
                     const author = users.find(u => u.id === report.userId);
@@ -695,6 +707,22 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                             <div className="text-sm font-medium text-gray-900">{new Date(report.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                             <div className="text-xs text-gray-500 font-bold">{report.userName}</div>
                             <div className="text-xs text-orange-600">{author?.zone || 'N/A'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                {report.isLostOperation ? (
+                                    <div className="flex flex-col">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            Op. Perdida
+                                        </span>
+                                        <span className="text-xs text-gray-500 mt-1 max-w-[150px] truncate" title={report.lostOperationReason}>
+                                            {report.lostOperationReason}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Activa
+                                    </span>
+                                )}
                             </td>
                             {questions.map(q => {
                             const answer = report.answers.find(a => a.questionId === q.id);
@@ -785,6 +813,34 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                                 </div>
                             );
                         })}
+
+                        {/* Edit Operación Perdida */}
+                        <div className="border-t border-gray-200 pt-4 mt-4">
+                            <div className="flex items-center">
+                                <input
+                                    id={`admin-edit-lost-${editingReport.id}`}
+                                    type="checkbox"
+                                    className="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded"
+                                    checked={editIsLostOperation}
+                                    onChange={(e) => setEditIsLostOperation(e.target.checked)}
+                                />
+                                <label htmlFor={`admin-edit-lost-${editingReport.id}`} className="ml-2 text-sm font-bold text-red-700">
+                                    Marcar como Operación Perdida
+                                </label>
+                            </div>
+                            {editIsLostOperation && (
+                                <div className="mt-2">
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Motivo de la pérdida *</label>
+                                    <textarea
+                                        className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                                        rows={2}
+                                        value={editLostOperationReason}
+                                        onChange={(e) => setEditLostOperationReason(e.target.value)}
+                                        required={editIsLostOperation}
+                                    />
+                                </div>
+                            )}
+                        </div>
                       </form>
                   </div>
                   <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 sticky bottom-0">

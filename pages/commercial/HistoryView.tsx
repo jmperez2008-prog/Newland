@@ -17,6 +17,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAnswers, setEditAnswers] = useState<Record<string, string>>({});
+  const [editIsLostOperation, setEditIsLostOperation] = useState(false);
+  const [editLostOperationReason, setEditLostOperationReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -41,11 +43,15 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
           initialAnswers[a.questionId] = String(a.value);
       });
       setEditAnswers(initialAnswers);
+      setEditIsLostOperation(report.isLostOperation || false);
+      setEditLostOperationReason(report.lostOperationReason || '');
   };
 
   const cancelEditing = () => {
       setEditingId(null);
       setEditAnswers({});
+      setEditIsLostOperation(false);
+      setEditLostOperationReason('');
   };
 
   const handleEditChange = (qId: string, val: string) => {
@@ -73,7 +79,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
 
       const updatedReport: Report = {
           ...originalReport,
-          answers: updatedAnswers
+          answers: updatedAnswers,
+          isLostOperation: editIsLostOperation,
+          lostOperationReason: editIsLostOperation ? editLostOperationReason : undefined
       };
 
       await StorageService.updateReport(updatedReport);
@@ -125,6 +133,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
                       {/* VIEW MODE */}
                       {!isEditing && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-2">
+                            {report.isLostOperation && (
+                                <div className="col-span-full bg-red-50 p-3 rounded border border-red-200 mb-2">
+                                    <p className="text-sm font-bold text-red-800 flex items-center gap-1">
+                                        <X className="w-4 h-4" /> Operación Perdida
+                                    </p>
+                                    <p className="text-sm text-red-700 mt-1">{report.lostOperationReason}</p>
+                                </div>
+                            )}
                             {report.answers.map(ans => {
                                 const q = questions.find(q => q.id === ans.questionId);
                                 if (!q) return null;
@@ -201,6 +217,34 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
                                        </div>
                                    );
                                })}
+
+                               {/* Edit Operación Perdida */}
+                               <div className="border-t border-gray-200 pt-4 mt-4">
+                                   <div className="flex items-center">
+                                       <input
+                                           id={`edit-lost-${report.id}`}
+                                           type="checkbox"
+                                           className="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded"
+                                           checked={editIsLostOperation}
+                                           onChange={(e) => setEditIsLostOperation(e.target.checked)}
+                                       />
+                                       <label htmlFor={`edit-lost-${report.id}`} className="ml-2 text-sm font-bold text-red-700">
+                                           Marcar como Operación Perdida
+                                       </label>
+                                   </div>
+                                   {editIsLostOperation && (
+                                       <div className="mt-2">
+                                           <label className="block text-xs font-medium text-gray-700 mb-1">Motivo de la pérdida *</label>
+                                           <textarea
+                                               className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                                               rows={2}
+                                               value={editLostOperationReason}
+                                               onChange={(e) => setEditLostOperationReason(e.target.value)}
+                                               required={editIsLostOperation}
+                                           />
+                                       </div>
+                                   )}
+                               </div>
 
                                <div className="flex justify-end gap-2 pt-2 border-t mt-2">
                                    <Button size="sm" variant="secondary" onClick={cancelEditing}>

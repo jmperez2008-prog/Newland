@@ -3,7 +3,7 @@ import { User, Question, Report, ReportAnswer, QuestionType } from '../../types'
 import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Copy } from 'lucide-react';
 
 interface NewReportProps {
   currentUser: User;
@@ -16,6 +16,9 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [isLostOperation, setIsLostOperation] = useState(false);
+  const [lostOperationReason, setLostOperationReason] = useState('');
+  const [loadingLastReport, setLoadingLastReport] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -25,6 +28,34 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
     };
     load();
   }, []);
+
+  const handleDuplicateLastReport = async () => {
+    setLoadingLastReport(true);
+    try {
+      const allReports = await StorageService.getReports();
+      const userReports = allReports
+        .filter(r => r.userId === currentUser.id)
+        .sort((a, b) => b.timestamp - a.timestamp);
+
+      if (userReports.length > 0) {
+        const lastReport = userReports[0];
+        const newAnswers: Record<string, string> = {};
+        lastReport.answers.forEach(ans => {
+          newAnswers[ans.questionId] = String(ans.value);
+        });
+        setAnswers(newAnswers);
+        setIsLostOperation(lastReport.isLostOperation || false);
+        setLostOperationReason(lastReport.lostOperationReason || '');
+      } else {
+        alert('No tienes reportes anteriores para duplicar.');
+      }
+    } catch (error) {
+      console.error('Error duplicando reporte:', error);
+      alert('Hubo un error al intentar duplicar el reporte.');
+    } finally {
+      setLoadingLastReport(false);
+    }
+  };
 
   const handleChange = (qId: string, value: string) => {
     setAnswers(prev => ({ ...prev, [qId]: value }));
@@ -56,7 +87,9 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
         userId: currentUser.id,
         userName: currentUser.name,
         timestamp: Date.now(),
-        answers: reportAnswers
+        answers: reportAnswers,
+        isLostOperation,
+        lostOperationReason: isLostOperation ? lostOperationReason : undefined
     };
 
     await StorageService.addReport(report);
@@ -64,6 +97,8 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
     setTimeout(() => {
         setSubmitted(false);
         setAnswers({});
+        setIsLostOperation(false);
+        setLostOperationReason('');
         setSending(false);
         onSuccess();
     }, 2000);
@@ -87,7 +122,19 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
 
   return (
     <div className="max-w-2xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow border border-gray-200">
-      <h3 className="text-xl font-bold text-gray-900 mb-6">Nuevo Reporte Comercial</h3>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-bold text-gray-900">Nuevo Reporte Comercial</h3>
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          onClick={handleDuplicateLastReport}
+          isLoading={loadingLastReport}
+          title="Duplicar el último reporte enviado"
+        >
+          <Copy className="w-4 h-4 mr-2" />
+          Duplicar Último
+        </Button>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-6">
         {questions.map((q) => {
             if (q.type === QuestionType.CURRENCY) {
@@ -146,6 +193,44 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
                 </div>
             );
         })}
+
+        {/* Operación Perdida Section */}
+        <div className="border-t border-gray-200 pt-6 mt-6">
+            <div className="flex items-start">
+                <div className="flex items-center h-5">
+                    <input
+                        id="lost-operation"
+                        type="checkbox"
+                        className="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded"
+                        checked={isLostOperation}
+                        onChange={(e) => setIsLostOperation(e.target.checked)}
+                    />
+                </div>
+                <div className="ml-3 text-sm">
+                    <label htmlFor="lost-operation" className="font-bold text-red-700 select-none cursor-pointer">
+                        Marcar como Operación Perdida
+                    </label>
+                    <p className="text-gray-500">Si la negociación no ha prosperado, marca esta casilla.</p>
+                </div>
+            </div>
+
+            {isLostOperation && (
+                <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Motivo de la pérdida <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                        className="w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                        rows={3}
+                        placeholder="Explica brevemente por qué se ha perdido la operación..."
+                        value={lostOperationReason}
+                        onChange={(e) => setLostOperationReason(e.target.value)}
+                        required={isLostOperation}
+                    />
+                </div>
+            )}
+        </div>
+
         <div className="pt-4">
             <Button type="submit" size="lg" className="w-full" isLoading={sending}>
                 Enviar Reporte

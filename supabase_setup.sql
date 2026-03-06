@@ -30,8 +30,14 @@ create table if not exists public.reports (
   user_name text not null,
   timestamp bigint not null,
   answers jsonb not null,
-  ai_summary text
+  ai_summary text,
+  is_lost_operation boolean default false,
+  lost_operation_reason text
 );
+
+-- Ensure columns exist if table was already created
+alter table public.reports add column if not exists is_lost_operation boolean default false;
+alter table public.reports add column if not exists lost_operation_reason text;
 
 -- 4. Citas / Agenda
 create table if not exists public.appointments (

@@ -44,6 +44,8 @@ export interface Report {
   timestamp: number;
   answers: ReportAnswer[];
   aiSummary?: string; // Optional AI insight
+  isLostOperation?: boolean;
+  lostOperationReason?: string;
 }
 
 export interface Appointment {
