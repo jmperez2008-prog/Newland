@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, UserGoal, UserRole } from '../../types';
+import { User, UserGoal, UserRole, Report, Question, QuestionType } from '../../types';
 import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -11,18 +11,58 @@ interface UserGoalsProps {
 
 export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
   const [goals, setGoals] = useState<UserGoal[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingGoal, setEditingGoal] = useState<Partial<UserGoal>>({});
 
   useEffect(() => {
-    loadGoals();
+    loadData();
   }, []);
 
-  const loadGoals = async () => {
+  const loadData = async () => {
     setLoading(true);
-    const g = await StorageService.getUserGoals();
+    const [g, r, q] = await Promise.all([
+      StorageService.getUserGoals(),
+      StorageService.getReports(),
+      StorageService.getQuestions()
+    ]);
     setGoals(g);
+    setReports(r);
+    setQuestions(q);
     setLoading(false);
+  };
+
+  const getProgressForGoal = (goal: UserGoal) => {
+    const [year, month] = goal.month.split('-').map(Number);
+    
+    let signed = 0;
+
+    reports.filter(r => {
+      const d = new Date(r.timestamp);
+      return d.getMonth() + 1 === month && d.getFullYear() === year && r.userId === goal.userId;
+    }).forEach(r => {
+        let isSaleClosed = false;
+        const saleQ = r.answers.find((a: any) => {
+            const q = questions.find(qu => qu.id === a.questionId);
+            return q && q.type === QuestionType.CHECK && q.text.toLowerCase().includes('venta');
+        });
+        if (saleQ && saleQ.value === 'Sí') isSaleClosed = true;
+
+        if (isSaleClosed) {
+            r.answers.forEach((a: any) => {
+                const q = questions.find(qu => qu.id === a.questionId);
+                if (!q) return;
+                const val = typeof a.value === 'string' ? parseFloat(a.value) : Number(a.value);
+                if (isNaN(val)) return;
+                const text = q.text.toLowerCase();
+                if (text.includes('movil') || text.includes('móvil')) {
+                    signed += val;
+                }
+            });
+        }
+    });
+    return signed;
   };
 
   const handleSaveGoal = async () => {
@@ -44,7 +84,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
         await StorageService.saveUserGoal(newGoal);
         console.log('Goal saved successfully');
         setEditingGoal({});
-        loadGoals();
+        loadData();
     } catch (e) {
         console.error('Failed to save goal:', e);
         alert('Error al guardar el objetivo. Revisa la consola.');
@@ -54,7 +94,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
   const handleDeleteGoal = async (id: string) => {
     if (confirm('¿Estás seguro de eliminar este objetivo?')) {
       await StorageService.deleteUserGoal(id);
-      loadGoals();
+      loadData();
     }
   };
 
@@ -67,22 +107,28 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h3 className="text-lg font-bold text-gray-900 mb-4">Asignar Objetivo Mensual</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <select
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-            value={editingGoal.userId || ''}
-            onChange={(e) => setEditingGoal({ ...editingGoal, userId: e.target.value })}
-          >
-            <option value="">Seleccionar Comercial</option>
-            {commercials.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-            value={editingGoal.month || ''}
-            onChange={(e) => setEditingGoal({ ...editingGoal, month: e.target.value })}
-          >
-            <option value="">Seleccionar Mes</option>
-            {['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <div className="w-full">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Comercial</label>
+            <select
+              className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-[#FF7900] focus:border-[#FF7900]"
+              value={editingGoal.userId || ''}
+              onChange={(e) => setEditingGoal({ ...editingGoal, userId: e.target.value })}
+            >
+              <option value="">Seleccionar Comercial</option>
+              {commercials.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="w-full">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
+            <select
+              className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-[#FF7900] focus:border-[#FF7900]"
+              value={editingGoal.month || ''}
+              onChange={(e) => setEditingGoal({ ...editingGoal, month: e.target.value })}
+            >
+              <option value="">Seleccionar Mes</option>
+              {['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
           <Input type="number" placeholder="Líneas Objetivo" value={editingGoal.goalLines ?? ''} onChange={(e) => setEditingGoal({ ...editingGoal, goalLines: Number(e.target.value) })} />
           <Input type="date" label="Fecha Límite" value={editingGoal.deadlineDate || ''} onChange={(e) => setEditingGoal({ ...editingGoal, deadlineDate: e.target.value })} />
         </div>
@@ -98,6 +144,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comercial</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mes</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Objetivo</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cumplido</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha Límite</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
             </tr>
@@ -110,6 +157,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user?.name || 'Desconocido'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{goal.month}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{goal.goalLines}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{getProgressForGoal(goal)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{goal.deadlineDate}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <button onClick={() => handleDeleteGoal(goal.id)} className="text-red-600 hover:text-red-900">
