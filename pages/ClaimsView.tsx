@@ -16,6 +16,7 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
   const [newClaim, setNewClaim] = useState<Partial<Claim>>({});
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [allegations, setAllegations] = useState('');
+  const [attachments, setAttachments] = useState<ClaimAttachment[]>([]);
 
   useEffect(() => {
     loadData();
@@ -30,6 +31,32 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
     setClaims(c);
     setUsers(u);
     setLoading(false);
+  };
+
+  const handleClaimSelect = async (claim: Claim) => {
+    setSelectedClaim(claim);
+    setAllegations(claim.allegations || '');
+    const atts = await StorageService.getClaimAttachments(claim.id);
+    setAttachments(atts);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !selectedClaim) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const attachment: ClaimAttachment = {
+        id: `att-${Date.now()}`,
+        claimId: selectedClaim.id,
+        fileName: file.name,
+        fileType: file.type,
+        data: reader.result as string,
+        uploadedBy: currentUser.id
+      };
+      await StorageService.addClaimAttachment(attachment);
+      setAttachments([...attachments, attachment]);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleCreateClaim = async () => {
@@ -106,7 +133,7 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{claim.companyName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{claim.status}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <Button variant="secondary" onClick={() => { setSelectedClaim(claim); setAllegations(claim.allegations || ''); }}>Ver</Button>
+                  <Button variant="secondary" onClick={() => handleClaimSelect(claim)}>Ver</Button>
                 </td>
               </tr>
             ))}
@@ -125,6 +152,19 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
               value={allegations}
               onChange={(e) => setAllegations(e.target.value)}
             />
+            
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Archivos Adjuntos</label>
+                <div className="flex flex-wrap gap-2">
+                    {attachments.map(att => (
+                        <a key={att.id} href={att.data} download={att.fileName} className="text-xs text-blue-600 underline">
+                            {att.fileName}
+                        </a>
+                    ))}
+                </div>
+                <input type="file" onChange={handleFileUpload} className="text-sm" />
+            </div>
+
             <div className="flex gap-2">
               <Button onClick={handleSaveAllegations}>Guardar Alegaciones</Button>
               <Button variant="secondary" onClick={() => setSelectedClaim(null)}>Cerrar</Button>
