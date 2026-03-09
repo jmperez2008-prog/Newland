@@ -106,13 +106,32 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{claim.companyName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{claim.status}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <Button variant="secondary" onClick={() => setSelectedClaim(claim)}>Ver</Button>
+                  <Button variant="secondary" onClick={() => { setSelectedClaim(claim); setAllegations(claim.allegations || ''); }}>Ver</Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {selectedClaim && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full space-y-4">
+            <h3 className="text-lg font-bold">Detalles de la Reclamación: {selectedClaim.companyName}</h3>
+            <p><strong>Problema:</strong> {selectedClaim.problem}</p>
+            <textarea
+              className="w-full p-2 border rounded"
+              placeholder="Alegaciones..."
+              value={allegations}
+              onChange={(e) => setAllegations(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleSaveAllegations}>Guardar Alegaciones</Button>
+              <Button variant="secondary" onClick={() => setSelectedClaim(null)}>Cerrar</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
