@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, UserGoal, Report, QuestionType, Question } from '../../types';
 import { StorageService } from '../../services/storageService';
+import { motion } from 'motion/react';
 
 interface CommercialGoalsProps {
   currentUser: User;
@@ -72,19 +73,53 @@ export const CommercialGoals: React.FC<CommercialGoalsProps> = ({ currentUser })
 
   const remainingLines = Math.max(0, currentGoal.goalLines - signedMobileLines);
   const daysRemaining = Math.max(0, Math.ceil((new Date(currentGoal.deadlineDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+  const progress = Math.min(100, (signedMobileLines / currentGoal.goalLines) * 100);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center">
-        <h3 className="text-sm font-bold text-gray-500 uppercase mb-2">Líneas Pendientes</h3>
-        <p className="text-5xl font-black text-[#FF7900]">{remainingLines}</p>
-        <p className="text-sm text-gray-500 mt-2">de {currentGoal.goalLines} objetivo total</p>
-      </div>
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-center">
-        <h3 className="text-sm font-bold text-gray-500 uppercase mb-2">Días para el cierre</h3>
-        <p className="text-5xl font-black text-gray-900">{daysRemaining}</p>
-        <p className="text-sm text-gray-500 mt-2">fecha límite: {currentGoal.deadlineDate}</p>
-      </div>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 text-center relative overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FF7900]/5 to-transparent" />
+        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Líneas Pendientes</h3>
+        <motion.p 
+          initial={{ scale: 0.5 }}
+          animate={{ scale: 1 }}
+          className="text-6xl font-black text-[#FF7900]"
+        >
+          {remainingLines}
+        </motion.p>
+        <p className="text-sm text-gray-500 mt-2 font-medium">de {currentGoal.goalLines} objetivo total</p>
+        
+        <div className="mt-6 h-3 bg-gray-100 rounded-full overflow-hidden">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            className="h-full bg-[#FF7900]"
+          />
+        </div>
+      </motion.div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 text-center relative overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/5 to-transparent" />
+        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Días para el cierre</h3>
+        <motion.p 
+          initial={{ scale: 0.5 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="text-6xl font-black text-gray-900"
+        >
+          {daysRemaining}
+        </motion.p>
+        <p className="text-sm text-gray-500 mt-2 font-medium">fecha límite: {currentGoal.deadlineDate}</p>
+      </motion.div>
     </div>
   );
 };
