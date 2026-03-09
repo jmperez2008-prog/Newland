@@ -64,7 +64,7 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
 
   const filteredReports = userReports.filter(r => {
     const searchLower = searchQuery.toLowerCase();
-    const dateStr = new Date(r.timestamp).toLocaleDateString('es-ES');
+    const dateStr = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const answersStr = r.answers.map(a => String(a.value).toLowerCase()).join(' ');
     return dateStr.includes(searchLower) || answersStr.includes(searchLower);
   });

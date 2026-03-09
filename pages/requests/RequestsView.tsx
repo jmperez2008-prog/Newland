@@ -121,7 +121,7 @@ export const RequestsView: React.FC<RequestsViewProps> = ({ currentUser }) => {
                   <div>
                     <h4 className="font-bold text-gray-900 group-hover:text-[#FF7900] transition-colors">{req.title}</h4>
                     <p className="text-xs text-gray-500">
-                      De: <span className="font-medium text-gray-700">{req.creatorName}</span> ({req.creatorZone || 'Global'}) • {new Date(req.createdAt).toLocaleDateString()}
+                      De: <span className="font-medium text-gray-700">{req.creatorName}</span> ({req.creatorZone || 'Global'}) • {new Date(req.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
@@ -214,7 +214,7 @@ export const RequestsView: React.FC<RequestsViewProps> = ({ currentUser }) => {
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{selectedRequest.title}</h3>
-                <p className="text-sm text-gray-500">De {selectedRequest.creatorName} • {new Date(selectedRequest.createdAt).toLocaleString()}</p>
+                <p className="text-sm text-gray-500">De {selectedRequest.creatorName} • {new Date(selectedRequest.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
               </div>
               <button onClick={() => setSelectedRequest(null)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-6 h-6" />

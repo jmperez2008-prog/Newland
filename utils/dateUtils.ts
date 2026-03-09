@@ -13,8 +13,8 @@ export const getWeekRange = (date: Date) => {
     const end = new Date(date.setDate(start.getDate() + 6));
     
     return {
-        start: start.toLocaleDateString('es-ES'),
-        end: end.toLocaleDateString('es-ES')
+        start: start.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        end: end.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
     };
 };
 

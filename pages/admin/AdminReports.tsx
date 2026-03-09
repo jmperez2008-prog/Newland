@@ -358,7 +358,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     const tableBody = displayedReports.map(r => {
         const author = users.find(u => u.id === r.userId);
         const zoneName = author?.zone || 'N/A';
-        const date = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        const date = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const lostOp = r.isLostOperation ? 'Sí' : 'No';
         
         const answers = questions.map(q => {
