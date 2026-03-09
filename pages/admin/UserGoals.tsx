@@ -43,13 +43,14 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
 
     const filteredReports = reports.filter(r => {
       const d = new Date(r.timestamp);
-      if (isNaN(d.getTime())) {
-          console.log(`Invalid date for report ${r.id}: ${r.timestamp}`);
-          return false;
-      }
-      const match = d.getMonth() + 1 === month && d.getFullYear() === year && r.userId === goal.userId;
-      if (match) console.log(`Found matching report: ${r.id}, Date: ${d.toISOString()}`);
-      return match;
+      // r.timestamp is likely a number (milliseconds), so new Date(r.timestamp) is correct.
+      // Let's check if the month and year match.
+      const reportMonth = d.getMonth() + 1;
+      const reportYear = d.getFullYear();
+      
+      console.log(`Report ${r.id} date: ${d.toISOString()}, Target: ${year}-${month}, Match: ${reportMonth === month && reportYear === year}`);
+      
+      return reportMonth === month && reportYear === year && r.userId === goal.userId;
     });
     
     console.log(`Reports found for goal: ${filteredReports.length}`);
