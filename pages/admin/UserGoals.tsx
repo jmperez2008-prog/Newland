@@ -26,7 +26,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
   };
 
   const handleSaveGoal = async () => {
-    if (!editingGoal.userId || !editingGoal.month || !editingGoal.goalLines || !editingGoal.deadlineDate) {
+    if (!editingGoal.userId || !editingGoal.month || editingGoal.goalLines === undefined || !editingGoal.deadlineDate) {
       alert('Por favor, completa todos los campos.');
       return;
     }
@@ -69,7 +69,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
             {commercials.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <Input type="month" value={editingGoal.month || ''} onChange={(e) => setEditingGoal({ ...editingGoal, month: e.target.value })} />
-          <Input type="number" placeholder="Líneas Objetivo" value={editingGoal.goalLines || ''} onChange={(e) => setEditingGoal({ ...editingGoal, goalLines: Number(e.target.value) })} />
+          <Input type="number" placeholder="Líneas Objetivo" value={editingGoal.goalLines ?? ''} onChange={(e) => setEditingGoal({ ...editingGoal, goalLines: Number(e.target.value) })} />
           <Input type="date" label="Fecha Límite" value={editingGoal.deadlineDate || ''} onChange={(e) => setEditingGoal({ ...editingGoal, deadlineDate: e.target.value })} />
         </div>
         <Button className="mt-4" onClick={handleSaveGoal}>
