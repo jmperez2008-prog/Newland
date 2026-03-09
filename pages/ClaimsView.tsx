@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, UserRole, Claim, ClaimStatus, ClaimAttachment } from '../types';
+import { User, UserRole, Claim, ClaimStatus, ClaimAttachment, ClaimMessage } from '../types';
 import { StorageService } from '../services/storageService';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -15,7 +15,9 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [newClaim, setNewClaim] = useState<Partial<Claim>>({});
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
-  const [allegations, setAllegations] = useState('');
+  const [newMessage, setNewMessage] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
   const [attachments, setAttachments] = useState<ClaimAttachment[]>([]);
 
   useEffect(() => {
@@ -35,9 +37,38 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
 
   const handleClaimSelect = async (claim: Claim) => {
     setSelectedClaim(claim);
-    setAllegations(claim.allegations || '');
     const atts = await StorageService.getClaimAttachments(claim.id);
     setAttachments(atts);
+  };
+
+  const handleAddMessage = async () => {
+    if (!selectedClaim || !newMessage.trim()) return;
+    const message: ClaimMessage = {
+      id: `msg-${Date.now()}`,
+      claimId: selectedClaim.id,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      content: newMessage,
+      timestamp: Date.now()
+    };
+    const updatedClaim = { ...selectedClaim, messages: [...selectedClaim.messages, message] };
+    await StorageService.saveClaim(updatedClaim);
+    setSelectedClaim(updatedClaim);
+    setNewMessage('');
+    loadData();
+  };
+
+  const handleEditMessage = async (messageId: string) => {
+    if (!selectedClaim) return;
+    const updatedMessages = selectedClaim.messages.map(m => 
+      m.id === messageId ? { ...m, content: editContent } : m
+    );
+    const updatedClaim = { ...selectedClaim, messages: updatedMessages };
+    await StorageService.saveClaim(updatedClaim);
+    setSelectedClaim(updatedClaim);
+    setEditingMessageId(null);
+    setEditContent('');
+    loadData();
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,6 +103,7 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
       companyName: newClaim.companyName,
       cif: newClaim.cif,
       problem: newClaim.problem,
+      messages: [],
       status: ClaimStatus.OPEN,
       commercialId: newClaim.commercialId,
       adminId: currentUser.id,
@@ -84,13 +116,7 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
     loadData();
   };
 
-  const handleSaveAllegations = async () => {
-    if (!selectedClaim) return;
-    const updatedClaim = { ...selectedClaim, allegations, status: ClaimStatus.RESOLVED };
-    await StorageService.saveClaim(updatedClaim);
-    setSelectedClaim(null);
-    loadData();
-  };
+  // Removed handleSaveAllegations
 
   if (loading) return <div className="p-8 text-center text-gray-500">Cargando reclamaciones...</div>;
 
@@ -146,27 +172,39 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
           <div className="bg-white rounded-lg p-6 max-w-lg w-full space-y-4">
             <h3 className="text-lg font-bold">Detalles de la Reclamación: {selectedClaim.companyName}</h3>
             <p><strong>Problema:</strong> {selectedClaim.problem}</p>
-            <textarea
-              className="w-full p-2 border rounded"
-              placeholder="Alegaciones..."
-              value={allegations}
-              onChange={(e) => setAllegations(e.target.value)}
-            />
             
-            <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Archivos Adjuntos</label>
-                <div className="flex flex-wrap gap-2">
-                    {attachments.map(att => (
-                        <a key={att.id} href={att.data} download={att.fileName} className="text-xs text-blue-600 underline">
-                            {att.fileName}
-                        </a>
-                    ))}
+            <div className="space-y-4 max-h-60 overflow-y-auto border p-2 rounded">
+              {selectedClaim.messages.map(msg => (
+                <div key={msg.id} className="p-2 bg-gray-100 rounded">
+                  <p className="text-xs font-bold">{msg.userName}</p>
+                  {editingMessageId === msg.id ? (
+                    <div className="flex gap-2">
+                      <input value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full p-1 border rounded" />
+                      <Button onClick={() => handleEditMessage(msg.id)}>Guardar</Button>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between">
+                      <p>{msg.content}</p>
+                      {msg.userId === currentUser.id && (
+                        <Button variant="secondary" onClick={() => { setEditingMessageId(msg.id); setEditContent(msg.content); }}>Editar</Button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <input type="file" onChange={handleFileUpload} className="text-sm" />
+              ))}
             </div>
 
+            <textarea
+              className="w-full p-2 border rounded"
+              placeholder="Nueva respuesta..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+            />
+            
+            <input type="file" onChange={handleFileUpload} className="text-sm" />
+
             <div className="flex gap-2">
-              <Button onClick={handleSaveAllegations}>Guardar Alegaciones</Button>
+              <Button onClick={handleAddMessage}>Enviar Respuesta</Button>
               <Button variant="secondary" onClick={() => setSelectedClaim(null)}>Cerrar</Button>
             </div>
           </div>

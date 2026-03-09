@@ -126,18 +126,27 @@ export enum ClaimStatus {
   RESOLVED = 'RESOLVED'
 }
 
+export interface ClaimMessage {
+  id: string;
+  claimId: string;
+  userId: string;
+  userName: string;
+  content: string;
+  timestamp: number;
+  attachments?: ClaimAttachment[];
+}
+
 export interface Claim {
   id: string;
   companyName: string;
   cif: string;
   problem: string;
-  allegations?: string;
+  messages: ClaimMessage[];
   status: ClaimStatus;
   commercialId: string;
   adminId: string;
   zone: string;
   createdAt: number;
-  attachments?: ClaimAttachment[];
 }
 
 export interface ClaimAttachment {
