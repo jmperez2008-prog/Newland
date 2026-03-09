@@ -147,6 +147,7 @@ export interface Claim {
   adminId: string;
   zone: string;
   createdAt: number;
+  resolution?: string;
 }
 
 export interface ClaimAttachment {

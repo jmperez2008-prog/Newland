@@ -16,6 +16,7 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
   const [newClaim, setNewClaim] = useState<Partial<Claim>>({});
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [resolution, setResolution] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [attachments, setAttachments] = useState<ClaimAttachment[]>([]);
@@ -37,6 +38,7 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
 
   const handleClaimSelect = async (claim: Claim) => {
     setSelectedClaim(claim);
+    setResolution(claim.resolution || '');
     const atts = await StorageService.getClaimAttachments(claim.id);
     setAttachments(atts);
   };
@@ -68,6 +70,18 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
     setSelectedClaim(updatedClaim);
     setEditingMessageId(null);
     setEditContent('');
+    loadData();
+  };
+
+  const handleCloseClaim = async () => {
+    if (!selectedClaim || !resolution.trim()) {
+      alert('Por favor, introduce una resolución.');
+      return;
+    }
+    const updatedClaim = { ...selectedClaim, resolution, status: ClaimStatus.RESOLVED };
+    await StorageService.saveClaim(updatedClaim);
+    setSelectedClaim(null);
+    setResolution('');
     loadData();
   };
 
@@ -149,6 +163,8 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empresa</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CIF</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motivo</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
             </tr>
@@ -157,6 +173,8 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
             {claims.map(claim => (
               <tr key={claim.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{claim.companyName}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{claim.cif}</td>
+                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{claim.problem}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{claim.status}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <Button variant="secondary" onClick={() => handleClaimSelect(claim)}>Ver</Button>
@@ -194,17 +212,38 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
               ))}
             </div>
 
-            <textarea
-              className="w-full p-2 border rounded"
-              placeholder="Nueva respuesta..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-            />
-            
-            <input type="file" onChange={handleFileUpload} className="text-sm" />
+            {selectedClaim.status === ClaimStatus.OPEN && (
+              <>
+                <textarea
+                  className="w-full p-2 border rounded"
+                  placeholder="Nueva respuesta..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                />
+                
+                <input type="file" onChange={handleFileUpload} className="text-sm" />
+
+                <Button onClick={handleAddMessage}>Enviar Respuesta</Button>
+
+                {(currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN) && (
+                  <div className="mt-4 border-t pt-4">
+                    <textarea
+                      className="w-full p-2 border rounded"
+                      placeholder="Resolución final..."
+                      value={resolution}
+                      onChange={(e) => setResolution(e.target.value)}
+                    />
+                    <Button className="mt-2" onClick={handleCloseClaim}>Cerrar Reclamación</Button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {selectedClaim.status === ClaimStatus.RESOLVED && (
+              <p className="text-sm text-gray-500 italic">Reclamación cerrada. Resolución: {selectedClaim.resolution}</p>
+            )}
 
             <div className="flex gap-2">
-              <Button onClick={handleAddMessage}>Enviar Respuesta</Button>
               <Button variant="secondary" onClick={() => setSelectedClaim(null)}>Cerrar</Button>
             </div>
           </div>

@@ -366,7 +366,8 @@ export const StorageService = {
       commercialId: c.commercial_id,
       adminId: c.admin_id,
       zone: c.zone,
-      createdAt: Number(c.created_at)
+      createdAt: Number(c.created_at),
+      resolution: c.resolution
     })) as Claim[];
 
     // Filter Logic
@@ -389,7 +390,8 @@ export const StorageService = {
       commercial_id: claim.commercialId,
       admin_id: claim.adminId,
       zone: claim.zone,
-      created_at: claim.createdAt
+      created_at: claim.createdAt,
+      resolution: claim.resolution
     };
     const { error } = await supabase.from('claims').upsert(dbClaim);
     if (error) console.error('Error saving claim:', error);
