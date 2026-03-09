@@ -42,13 +42,13 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
     console.log(`Total Reports: ${reports.length}`);
 
     const filteredReports = reports.filter(r => {
+      // r.timestamp is a number (milliseconds).
       const d = new Date(r.timestamp);
-      // r.timestamp is likely a number (milliseconds), so new Date(r.timestamp) is correct.
-      // Let's check if the month and year match.
+      
       const reportMonth = d.getMonth() + 1;
       const reportYear = d.getFullYear();
       
-      console.log(`Report ${r.id} date: ${d.toISOString()}, Target: ${year}-${month}, Match: ${reportMonth === month && reportYear === year}`);
+      console.log(`Report ${r.id} date: ${d.toISOString()}, Target: ${year}-${month}, Match: ${reportMonth === month && reportYear === year}, r.userId: ${r.userId}, goal.userId: ${goal.userId}`);
       
       return reportMonth === month && reportYear === year && r.userId === goal.userId;
     });
