@@ -38,16 +38,26 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
     
     let signed = 0;
 
-    reports.filter(r => {
+    const filteredReports = reports.filter(r => {
       const d = new Date(r.timestamp);
+      if (isNaN(d.getTime())) {
+          console.log(`Invalid date for report ${r.id}: ${r.timestamp}`);
+          return false;
+      }
       return d.getMonth() + 1 === month && d.getFullYear() === year && r.userId === goal.userId;
-    }).forEach(r => {
+    });
+    
+    console.log(`Goal: ${goal.month}, User: ${goal.userId}, Reports found: ${filteredReports.length}`);
+
+    filteredReports.forEach(r => {
         let isSaleClosed = false;
         const saleQ = r.answers.find((a: any) => {
             const q = questions.find(qu => qu.id === a.questionId);
             return q && q.type === QuestionType.CHECK && q.text.toLowerCase().includes('venta');
         });
         if (saleQ && saleQ.value === 'Sí') isSaleClosed = true;
+
+        console.log(`Report: ${r.id}, isSaleClosed: ${isSaleClosed}`);
 
         if (isSaleClosed) {
             r.answers.forEach((a: any) => {
@@ -57,6 +67,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
                 if (isNaN(val)) return;
                 const text = q.text.toLowerCase();
                 if (text.includes('movil') || text.includes('móvil')) {
+                    console.log(`Adding ${val} from question ${q.text}`);
                     signed += val;
                 }
             });
