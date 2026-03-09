@@ -65,7 +65,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
         });
         
         const normalizedValue = saleQ?.value?.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        if (saleQ && (normalizedValue === 'si' || saleQ.value === true)) isSaleClosed = true;
+        if (saleQ && (normalizedValue === 'si' || (saleQ.value as any) === true)) isSaleClosed = true;
 
         console.log(`Report: ${r.id}, isSaleClosed: ${isSaleClosed}, Raw Value: ${saleQ?.value}`);
 
