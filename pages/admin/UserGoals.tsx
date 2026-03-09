@@ -34,11 +34,14 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
   };
 
   const getProgressForGoal = (goal: UserGoal) => {
-    const [year, month] = goal.month.split('-').map(Number);
+    // goal.month is in "YYYY-MM" format
+    const parts = goal.month.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
     
     let signed = 0;
 
-    console.log(`Debug Goal: ${goal.month}, User: ${goal.userId}`);
+    console.log(`Debug Goal: ${goal.month}, Year: ${year}, Month: ${month}, User: ${goal.userId}`);
     console.log(`Total Reports: ${reports.length}`);
 
     const filteredReports = reports.filter(r => {
@@ -48,9 +51,13 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
       const reportMonth = d.getMonth() + 1;
       const reportYear = d.getFullYear();
       
-      console.log(`Report ${r.id} date: ${d.toISOString()}, Target: ${year}-${month}, Match: ${reportMonth === month && reportYear === year}, r.userId: ${r.userId}, goal.userId: ${goal.userId}`);
+      const match = reportMonth === month && reportYear === year && r.userId === goal.userId;
       
-      return reportMonth === month && reportYear === year && r.userId === goal.userId;
+      if (match) {
+        console.log(`Found matching report: ${r.id}, Date: ${d.toISOString()}, r.userId: ${r.userId}, goal.userId: ${goal.userId}`);
+      }
+      
+      return match;
     });
     
     console.log(`Reports found for goal: ${filteredReports.length}`);
