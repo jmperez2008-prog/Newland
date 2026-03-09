@@ -38,26 +38,36 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
     
     let signed = 0;
 
+    console.log(`Debug Goal: ${goal.month}, User: ${goal.userId}`);
+    console.log(`Total Reports: ${reports.length}`);
+
     const filteredReports = reports.filter(r => {
       const d = new Date(r.timestamp);
       if (isNaN(d.getTime())) {
           console.log(`Invalid date for report ${r.id}: ${r.timestamp}`);
           return false;
       }
-      return d.getMonth() + 1 === month && d.getFullYear() === year && r.userId === goal.userId;
+      const match = d.getMonth() + 1 === month && d.getFullYear() === year && r.userId === goal.userId;
+      if (match) console.log(`Found matching report: ${r.id}, Date: ${d.toISOString()}`);
+      return match;
     });
     
-    console.log(`Goal: ${goal.month}, User: ${goal.userId}, Reports found: ${filteredReports.length}`);
+    console.log(`Reports found for goal: ${filteredReports.length}`);
 
     filteredReports.forEach(r => {
         let isSaleClosed = false;
+        console.log(`Report ${r.id} answers:`, r.answers);
+        
         const saleQ = r.answers.find((a: any) => {
             const q = questions.find(qu => qu.id === a.questionId);
+            console.log(`Checking answer ${a.questionId}:`, q?.text, q?.type, a.value);
             return q && q.type === QuestionType.CHECK && q.text.toLowerCase().includes('venta');
         });
-        if (saleQ && saleQ.value === 'Sí') isSaleClosed = true;
+        
+        const normalizedValue = saleQ?.value?.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (saleQ && (normalizedValue === 'si' || saleQ.value === true)) isSaleClosed = true;
 
-        console.log(`Report: ${r.id}, isSaleClosed: ${isSaleClosed}`);
+        console.log(`Report: ${r.id}, isSaleClosed: ${isSaleClosed}, Raw Value: ${saleQ?.value}`);
 
         if (isSaleClosed) {
             r.answers.forEach((a: any) => {
@@ -66,6 +76,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
                 const val = typeof a.value === 'string' ? parseFloat(a.value) : Number(a.value);
                 if (isNaN(val)) return;
                 const text = q.text.toLowerCase();
+                console.log(`Checking question for lines: ${q.text}, val: ${val}`);
                 if (text.includes('movil') || text.includes('móvil')) {
                     console.log(`Adding ${val} from question ${q.text}`);
                     signed += val;
