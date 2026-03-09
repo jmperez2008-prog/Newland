@@ -129,7 +129,7 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
               {['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          <Input type="number" placeholder="Líneas Objetivo" value={editingGoal.goalLines ?? ''} onChange={(e) => setEditingGoal({ ...editingGoal, goalLines: Number(e.target.value) })} />
+          <Input type="number" label="Líneas Objetivo" placeholder="Líneas Objetivo" value={editingGoal.goalLines ?? ''} onChange={(e) => setEditingGoal({ ...editingGoal, goalLines: Number(e.target.value) })} />
           <Input type="date" label="Fecha Límite" value={editingGoal.deadlineDate || ''} onChange={(e) => setEditingGoal({ ...editingGoal, deadlineDate: e.target.value })} />
         </div>
         <Button className="mt-4" onClick={handleSaveGoal}>
