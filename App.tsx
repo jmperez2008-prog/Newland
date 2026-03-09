@@ -6,6 +6,8 @@ import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { CommercialDashboard } from './pages/CommercialDashboard';
 import { NotificationProvider } from './context/NotificationContext';
+import { GoalProvider } from './context/GoalContext';
+import { GoalCounter } from './components/GoalCounter';
 import { 
   LogOut, Globe, Users, FileText, Settings, Calendar, Folder, 
   MessageCircle, PlusCircle, History, Mail, ClipboardList, Menu, X as CloseIcon, User as UserIcon,
@@ -130,8 +132,10 @@ const App: React.FC = () => {
 
   return (
     <NotificationProvider currentUser={currentUser}>
-      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-        {/* Mobile Header */}
+      <GoalProvider currentUser={currentUser}>
+        <GoalCounter />
+        <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+          {/* Mobile Header */}
         <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 bg-[#FF7900] rounded-full flex items-center justify-center text-white font-bold text-lg">N</div>
@@ -277,7 +281,8 @@ const App: React.FC = () => {
         )}
       </main>
     </div>
-  </NotificationProvider>
+  </GoalProvider>
+</NotificationProvider>
 );
 };
 

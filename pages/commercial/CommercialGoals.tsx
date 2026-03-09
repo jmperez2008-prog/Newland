@@ -30,7 +30,8 @@ export const CommercialGoals: React.FC<CommercialGoalsProps> = ({ currentUser })
   };
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const currentGoal = goals.find(g => g.month === currentMonth);
+  const currentMonthName = new Date().toLocaleDateString('es-ES', { month: 'long' }); // "marzo"
+  const currentGoal = goals.find(g => g.month === currentMonth || g.month.toLowerCase() === currentMonthName.toLowerCase());
 
   const signedMobileLines = useMemo(() => {
     const now = new Date();
