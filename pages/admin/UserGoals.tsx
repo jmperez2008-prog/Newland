@@ -34,13 +34,15 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
   };
 
   const getProgressForGoal = (goal: UserGoal) => {
-    // goal.month might be "YYYY-MM" or just "Marzo" (invalid format).
-    // Let's check the format.
+    // goal.month might be "YYYY-MM" or "Marzo" (invalid format).
     let year, month;
     if (goal.month.includes('-')) {
         const parts = goal.month.split('-');
         year = parseInt(parts[0], 10);
         month = parseInt(parts[1], 10);
+    } else if (goal.month === 'Marzo') {
+        year = 2026;
+        month = 3;
     } else {
         // Fallback or error handling if format is not YYYY-MM
         console.error(`Invalid month format: ${goal.month}`);
