@@ -337,8 +337,13 @@ export const StorageService = {
       goal_lines: goal.goalLines,
       deadline_date: goal.deadlineDate
     };
+    console.log('Saving goal to Supabase:', dbGoal);
     const { error } = await supabase.from('user_goals').upsert(dbGoal);
-    if (error) console.error('Error saving user goal:', error);
+    if (error) {
+        console.error('Error saving user goal:', error);
+        throw error;
+    }
+    console.log('Goal saved successfully');
   },
 
   deleteUserGoal: async (id: string) => {

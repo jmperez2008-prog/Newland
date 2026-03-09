@@ -39,9 +39,16 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
       deadlineDate: editingGoal.deadlineDate
     };
 
-    await StorageService.saveUserGoal(newGoal);
-    setEditingGoal({});
-    loadGoals();
+    console.log('Attempting to save goal:', newGoal);
+    try {
+        await StorageService.saveUserGoal(newGoal);
+        console.log('Goal saved successfully');
+        setEditingGoal({});
+        loadGoals();
+    } catch (e) {
+        console.error('Failed to save goal:', e);
+        alert('Error al guardar el objetivo. Revisa la consola.');
+    }
   };
 
   const handleDeleteGoal = async (id: string) => {
