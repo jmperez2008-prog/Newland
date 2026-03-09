@@ -112,3 +112,38 @@ export interface AppRequest {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface UserGoal {
+  id: string;
+  userId: string;
+  month: string; // YYYY-MM
+  goalLines: number;
+  deadlineDate: string; // YYYY-MM-DD
+}
+
+export enum ClaimStatus {
+  OPEN = 'OPEN',
+  RESOLVED = 'RESOLVED'
+}
+
+export interface Claim {
+  id: string;
+  companyName: string;
+  cif: string;
+  problem: string;
+  allegations?: string;
+  status: ClaimStatus;
+  commercialId: string;
+  adminId: string;
+  zone: string;
+  createdAt: number;
+}
+
+export interface ClaimAttachment {
+  id: string;
+  claimId: string;
+  fileName: string;
+  fileType: string;
+  data: string; // Base64
+  uploadedBy: string; // User ID
+}

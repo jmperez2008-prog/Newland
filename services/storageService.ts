@@ -1,4 +1,4 @@
-import { User, Question, Report, Appointment, UserRole, QuestionType, SharedDocument, ChatChannel, ChatMessage, ChatType, AppRequest, RequestStatus } from '../types';
+import { User, Question, Report, Appointment, UserRole, QuestionType, SharedDocument, ChatChannel, ChatMessage, ChatType, AppRequest, RequestStatus, UserGoal, Claim, ClaimStatus, ClaimAttachment } from '../types';
 import { supabase } from './supabase';
 
 // Helper to map DB columns (snake_case) to Types (camelCase) if needed, 
@@ -267,10 +267,6 @@ export const StorageService = {
       // Admin sees requests from their zone
       if (user.role === UserRole.ADMIN && req.creatorZone === user.zone) return true;
       
-      // Also, if a request is targeted to the user's role, they might need to see it?
-      // But the requirement says: "solo la puede ver el comercial, su jefe de equipo (admin) y gerencia"
-      // So the logic above covers it.
-      
       return false;
     });
   },
@@ -315,5 +311,108 @@ export const StorageService = {
     } else {
       localStorage.removeItem('cr_current_user');
     }
+  },
+
+  // User Goals
+  getUserGoals: async (): Promise<UserGoal[]> => {
+    const { data, error } = await supabase.from('user_goals').select('*');
+    if (error) {
+      console.error('Error fetching user goals:', error);
+      return [];
+    }
+    return data.map((g: any) => ({
+      id: g.id,
+      userId: g.user_id,
+      month: g.month,
+      goalLines: g.goal_lines,
+      deadlineDate: g.deadline_date
+    })) as UserGoal[];
+  },
+
+  saveUserGoal: async (goal: UserGoal) => {
+    const dbGoal = {
+      id: goal.id,
+      user_id: goal.userId,
+      month: goal.month,
+      goal_lines: goal.goalLines,
+      deadline_date: goal.deadlineDate
+    };
+    const { error } = await supabase.from('user_goals').upsert(dbGoal);
+    if (error) console.error('Error saving user goal:', error);
+  },
+
+  deleteUserGoal: async (id: string) => {
+    const { error } = await supabase.from('user_goals').delete().eq('id', id);
+    if (error) console.error('Error deleting user goal:', error);
+  },
+
+  // Claims
+  getClaims: async (user: User): Promise<Claim[]> => {
+    const { data, error } = await supabase.from('claims').select('*');
+    if (error) return [];
+    
+    const allClaims = data.map((c: any) => ({
+      id: c.id,
+      companyName: c.company_name,
+      cif: c.cif,
+      problem: c.problem,
+      allegations: c.allegations,
+      status: c.status as ClaimStatus,
+      commercialId: c.commercial_id,
+      adminId: c.admin_id,
+      zone: c.zone,
+      createdAt: Number(c.created_at)
+    })) as Claim[];
+
+    // Filter Logic
+    return allClaims.filter(c => {
+      if (user.role === UserRole.SUPERADMIN) return true;
+      if (user.role === UserRole.ADMIN && c.zone === user.zone) return true;
+      if (user.role === UserRole.COMMERCIAL && c.commercialId === user.id) return true;
+      return false;
+    });
+  },
+
+  saveClaim: async (claim: Claim) => {
+    const dbClaim = {
+      id: claim.id,
+      company_name: claim.companyName,
+      cif: claim.cif,
+      problem: claim.problem,
+      allegations: claim.allegations,
+      status: claim.status,
+      commercial_id: claim.commercialId,
+      admin_id: claim.adminId,
+      zone: claim.zone,
+      created_at: claim.createdAt
+    };
+    const { error } = await supabase.from('claims').upsert(dbClaim);
+    if (error) console.error('Error saving claim:', error);
+  },
+
+  getClaimAttachments: async (claimId: string): Promise<ClaimAttachment[]> => {
+    const { data, error } = await supabase.from('claim_attachments').select('*').eq('claim_id', claimId);
+    if (error) return [];
+    return data.map((a: any) => ({
+      id: a.id,
+      claimId: a.claim_id,
+      fileName: a.file_name,
+      fileType: a.file_type,
+      data: a.data,
+      uploadedBy: a.uploaded_by
+    })) as ClaimAttachment[];
+  },
+
+  addClaimAttachment: async (attachment: ClaimAttachment) => {
+    const dbAttachment = {
+      id: attachment.id,
+      claim_id: attachment.claimId,
+      file_name: attachment.fileName,
+      file_type: attachment.fileType,
+      data: attachment.data,
+      uploaded_by: attachment.uploadedBy
+    };
+    const { error } = await supabase.from('claim_attachments').insert(dbAttachment);
+    if (error) console.error('Error adding attachment:', error);
   }
 };

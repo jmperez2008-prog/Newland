@@ -7,6 +7,7 @@ import { AdminCalendar } from './admin/AdminCalendar';
 import { AdminDocuments } from './admin/AdminDocuments';
 import { ChatView } from './chat/ChatView';
 import { RequestsView } from './requests/RequestsView';
+import { ClaimsView } from './ClaimsView';
 
 interface AdminDashboardProps {
   currentUser: User;
@@ -30,6 +31,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, act
           {activeTab === 'documents' && <AdminDocuments />}
           {activeTab === 'chat' && <ChatView currentUser={currentUser} />}
           {activeTab === 'requests' && <RequestsView currentUser={currentUser} />}
+          {activeTab === 'claims' && <ClaimsView currentUser={currentUser} />}
           {activeTab === 'mailpulse' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <iframe 

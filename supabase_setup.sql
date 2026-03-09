@@ -137,3 +137,48 @@ create table if not exists public.requests (
 alter table public.requests enable row level security;
 drop policy if exists "Public access requests" on public.requests;
 create policy "Public access requests" on public.requests for all using (true);
+
+-- 9. Objetivos de Usuarios
+create table if not exists public.user_goals (
+  id text not null primary key,
+  user_id text not null,
+  month text not null,
+  goal_lines integer not null,
+  deadline_date text not null
+);
+
+alter table public.user_goals enable row level security;
+drop policy if exists "Public access user_goals" on public.user_goals;
+create policy "Public access user_goals" on public.user_goals for all using (true);
+
+-- 10. Reclamaciones
+create table if not exists public.claims (
+  id text not null primary key,
+  company_name text not null,
+  cif text not null,
+  problem text not null,
+  allegations text,
+  status text not null,
+  commercial_id text not null,
+  admin_id text not null,
+  zone text not null,
+  created_at bigint not null
+);
+
+alter table public.claims enable row level security;
+drop policy if exists "Public access claims" on public.claims;
+create policy "Public access claims" on public.claims for all using (true);
+
+-- 11. Adjuntos Reclamaciones
+create table if not exists public.claim_attachments (
+  id text not null primary key,
+  claim_id text not null,
+  file_name text not null,
+  file_type text not null,
+  data text not null,
+  uploaded_by text not null
+);
+
+alter table public.claim_attachments enable row level security;
+drop policy if exists "Public access claim_attachments" on public.claim_attachments;
+create policy "Public access claim_attachments" on public.claim_attachments for all using (true);

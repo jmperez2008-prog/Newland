@@ -6,6 +6,8 @@ import { HistoryView } from './commercial/HistoryView';
 import { CommercialDocuments } from './commercial/CommercialDocuments';
 import { ChatView } from './chat/ChatView';
 import { RequestsView } from './requests/RequestsView';
+import { CommercialGoals } from './commercial/CommercialGoals';
+import { ClaimsView } from './ClaimsView';
 
 interface CommercialDashboardProps {
   currentUser: User;
@@ -27,6 +29,8 @@ export const CommercialDashboard: React.FC<CommercialDashboardProps> = ({ curren
           {activeTab === 'documents' && <CommercialDocuments />}
           {activeTab === 'chat' && <ChatView currentUser={currentUser} />}
           {activeTab === 'requests' && <RequestsView currentUser={currentUser} />}
+          {activeTab === 'goals' && <CommercialGoals currentUser={currentUser} />}
+          {activeTab === 'claims' && <ClaimsView currentUser={currentUser} />}
           {activeTab === 'mailpulse' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <iframe 

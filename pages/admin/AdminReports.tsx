@@ -6,13 +6,14 @@ import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
-import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi } from 'lucide-react';
+import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi, Target } from 'lucide-react';
+import { UserGoals } from './UserGoals';
 
 interface AdminReportsProps {
     currentUser: User;
 }
 
-type ViewMode = 'current' | 'archive' | 'monthly';
+type ViewMode = 'current' | 'archive' | 'monthly' | 'goals';
 
 export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   const [reports, setReports] = useState<Report[]>([]);
@@ -513,6 +514,13 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
             >
                 Resumen Mensual
             </button>
+            <button
+                onClick={() => { setViewMode('goals'); setSelectedArchiveWeek(null); }}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'goals' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                <Target className="h-4 w-4 inline mr-1" />
+                Objetivos
+            </button>
         </div>
       </div>
 
@@ -646,6 +654,11 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                     </tbody>
                 </table>
            </div>
+      )}
+
+      {/* VIEW: GOALS */}
+      {viewMode === 'goals' && (
+          <UserGoals users={users} />
       )}
 
       {/* VIEW: TABLE LIST (Used for 'current' and specific 'archive' week) */}

@@ -5,10 +5,11 @@ import { isSupabaseConfigured } from './services/supabase';
 import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { CommercialDashboard } from './pages/CommercialDashboard';
+import { NotificationProvider } from './context/NotificationContext';
 import { 
   LogOut, Globe, Users, FileText, Settings, Calendar, Folder, 
   MessageCircle, PlusCircle, History, Mail, ClipboardList, Menu, X as CloseIcon, User as UserIcon,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Target, AlertCircle
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -95,6 +96,8 @@ const App: React.FC = () => {
             { id: 'documents', label: 'Documentos', icon: Folder },
             { id: 'requests', label: 'Peticiones', icon: ClipboardList },
             { id: 'mailpulse', label: 'MailPulse', icon: Mail },
+            { id: 'goals', label: 'Mis Objetivos', icon: Target },
+            { id: 'claims', label: 'Reclamaciones', icon: AlertCircle },
           ];
       }
       
@@ -107,6 +110,7 @@ const App: React.FC = () => {
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'requests', label: 'Peticiones', icon: ClipboardList },
         { id: 'mailpulse', label: 'MailPulse', icon: Mail },
+        { id: 'claims', label: 'Reclamaciones', icon: AlertCircle },
       ];
 
       if (user.role === UserRole.SUPERADMIN) {
@@ -125,9 +129,10 @@ const App: React.FC = () => {
   const menuItems = getMenuItems(currentUser);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-      {/* Mobile Header */}
-      <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+    <NotificationProvider currentUser={currentUser}>
+      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+        {/* Mobile Header */}
+        <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 bg-[#FF7900] rounded-full flex items-center justify-center text-white font-bold text-lg">N</div>
           <span className="text-xl font-black text-[#FF7900] tracking-tight">Newland</span>
@@ -272,7 +277,8 @@ const App: React.FC = () => {
         )}
       </main>
     </div>
-  );
+  </NotificationProvider>
+);
 };
 
 export default App;
