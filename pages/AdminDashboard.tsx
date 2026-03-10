@@ -5,6 +5,7 @@ import { AdminForms } from './admin/AdminForms';
 import { AdminReports } from './admin/AdminReports';
 import { AdminCalendar } from './admin/AdminCalendar';
 import { AdminDocuments } from './admin/AdminDocuments';
+import { AdminGlobalGoals } from './admin/AdminGlobalGoals';
 import { ChatView } from './chat/ChatView';
 import { RequestsView } from './requests/RequestsView';
 import { ClaimsView } from './ClaimsView';
@@ -22,6 +23,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, act
             {currentUser.role === UserRole.SUPERADMIN ? 'Panel Super Admin' : `Panel Admin ${currentUser.zone}`}
         </h2>
       </div>
+
+      <AdminGlobalGoals currentUser={currentUser} />
 
       <div className="flex-1 w-full min-w-0">
           {activeTab === 'users' && <AdminUsers currentUser={currentUser} />}

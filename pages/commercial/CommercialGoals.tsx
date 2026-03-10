@@ -86,13 +86,13 @@ export const CommercialGoals: React.FC<CommercialGoalsProps> = ({ currentUser })
         className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 text-center relative overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-[#FF7900]/5 to-transparent" />
-        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Líneas Pendientes</h3>
+        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Líneas Firmadas</h3>
         <motion.p 
           initial={{ scale: 0.5 }}
           animate={{ scale: 1 }}
           className="text-6xl font-black text-[#FF7900]"
         >
-          {remainingLines}
+          {signedMobileLines}
         </motion.p>
         <p className="text-sm text-gray-500 mt-2 font-medium">de {currentGoal.goalLines} objetivo total</p>
         
