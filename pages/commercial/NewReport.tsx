@@ -53,7 +53,15 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
   const handleDuplicate = (report: Report) => {
     const newAnswers: Record<string, string> = {};
     report.answers.forEach(ans => {
-      newAnswers[ans.questionId] = String(ans.value);
+      // Find the question to check if it's the "venta" question
+      const q = questions.find(qu => qu.id === ans.questionId);
+      
+      // If it's the "venta" question (usually a checkbox containing 'venta'), reset it to 'No'
+      if (q && q.type === QuestionType.CHECK && q.text.toLowerCase().includes('venta')) {
+          newAnswers[ans.questionId] = 'No';
+      } else {
+          newAnswers[ans.questionId] = String(ans.value);
+      }
     });
     setAnswers(newAnswers);
     setIsLostOperation(report.isLostOperation || false);
