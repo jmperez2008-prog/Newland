@@ -24,7 +24,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, act
         </h2>
       </div>
 
-      <AdminGlobalGoals currentUser={currentUser} />
+      {activeTab !== 'mailpulse' && <AdminGlobalGoals currentUser={currentUser} />}
 
       <div className="flex-1 w-full min-w-0">
           {activeTab === 'users' && <AdminUsers currentUser={currentUser} />}
