@@ -104,16 +104,22 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
         lostOperationReason: isLostOperation ? lostOperationReason : undefined
     };
 
-    await StorageService.addReport(report);
-    setSubmitted(true);
-    setTimeout(() => {
-        setSubmitted(false);
-        setAnswers({});
-        setIsLostOperation(false);
-        setLostOperationReason('');
+    try {
+        await StorageService.addReport(report);
+        setSubmitted(true);
+        setTimeout(() => {
+            setSubmitted(false);
+            setAnswers({});
+            setIsLostOperation(false);
+            setLostOperationReason('');
+            setSending(false);
+            onSuccess();
+        }, 2000);
+    } catch (error) {
+        console.error("Error submitting report:", error);
+        alert("Hubo un error al enviar el reporte. Por favor, inténtalo de nuevo.");
         setSending(false);
-        onSuccess();
-    }, 2000);
+    }
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Cargando formulario...</div>;

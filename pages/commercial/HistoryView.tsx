@@ -84,11 +84,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentUser }) => {
           lostOperationReason: editIsLostOperation ? editLostOperationReason : undefined
       };
 
-      await StorageService.updateReport(updatedReport);
-      
-      setReports(reports.map(r => r.id === reportId ? updatedReport : r));
-      setIsSaving(false);
-      setEditingId(null);
+      try {
+          await StorageService.updateReport(updatedReport);
+          setReports(reports.map(r => r.id === reportId ? updatedReport : r));
+          setIsSaving(false);
+          setEditingId(null);
+      } catch (error) {
+          console.error("Error updating report:", error);
+          alert("Hubo un error al actualizar el reporte.");
+          setIsSaving(false);
+      }
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Cargando historial...</div>;

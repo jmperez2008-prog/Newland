@@ -72,12 +72,15 @@ export const StorageService = {
         user_name: report.userName,
         timestamp: report.timestamp,
         answers: report.answers,
-        ai_summary: report.aiSummary,
+        ai_summary: report.aiSummary || null,
         is_lost_operation: report.isLostOperation || false,
         lost_operation_reason: report.lostOperationReason || null
     };
     const { error } = await supabase.from('reports').insert(dbReport);
-    if (error) console.error('Error adding report:', error);
+    if (error) {
+        console.error('Error adding report:', error);
+        throw error;
+    }
   },
 
   updateReport: async (report: Report) => {
@@ -86,13 +89,16 @@ export const StorageService = {
           user_name: report.userName,
           timestamp: report.timestamp,
           answers: report.answers,
-          ai_summary: report.aiSummary,
+          ai_summary: report.aiSummary || null,
           is_lost_operation: report.isLostOperation || false,
           lost_operation_reason: report.lostOperationReason || null
       };
       // We only update the fields, ID is used to match
       const { error } = await supabase.from('reports').update(dbReport).eq('id', report.id);
-      if (error) console.error('Error updating report:', error);
+      if (error) {
+          console.error('Error updating report:', error);
+          throw error;
+      }
   },
 
   // Appointments

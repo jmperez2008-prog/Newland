@@ -435,13 +435,19 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
           lostOperationReason: editIsLostOperation ? editLostOperationReason : undefined
       };
 
-      await StorageService.updateReport(updatedReport);
-      
-      // Update local state
-      setReports(reports.map(r => r.id === updatedReport.id ? updatedReport : r));
-      
-      setIsSaving(false);
-      setEditingReport(null);
+      try {
+          await StorageService.updateReport(updatedReport);
+          
+          // Update local state
+          setReports(reports.map(r => r.id === updatedReport.id ? updatedReport : r));
+          
+          setIsSaving(false);
+          setEditingReport(null);
+      } catch (error) {
+          console.error("Error updating report:", error);
+          alert("Hubo un error al actualizar el reporte.");
+          setIsSaving(false);
+      }
   };
 
   const availableZones = useMemo(() => {
