@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { User, UserGoal, Report, QuestionType, Question } from '../../types';
 import { StorageService } from '../../services/storageService';
 import { motion } from 'motion/react';
+import { getUniqueReportsForStats } from '../../utils/reportUtils';
 
 interface CommercialGoalsProps {
   currentUser: User;
@@ -41,7 +42,9 @@ export const CommercialGoals: React.FC<CommercialGoalsProps> = ({ currentUser })
     
     let signed = 0;
 
-    reports.filter(r => {
+    const uniqueReports = getUniqueReportsForStats(reports, questions);
+
+    uniqueReports.filter(r => {
       const d = new Date(r.timestamp);
       return d.getMonth() === month && d.getFullYear() === year;
     }).forEach(r => {

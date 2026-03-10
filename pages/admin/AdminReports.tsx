@@ -6,6 +6,7 @@ import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
+import { getUniqueReportsForStats } from '../../utils/reportUtils';
 import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi, Target } from 'lucide-react';
 import { UserGoals } from './UserGoals';
 
@@ -133,7 +134,9 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
           totalOps: number, closedOps: number 
       }> = {};
 
-      baseFilteredReports.forEach(r => {
+      const uniqueReports = getUniqueReportsForStats(baseFilteredReports, questions);
+
+      uniqueReports.forEach(r => {
           const d = new Date(r.timestamp);
           const key = `${d.getFullYear()}-${d.getMonth()}`;
 
@@ -188,8 +191,9 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     
     // Determine which dataset to use for KPIs
     const dataset = viewMode === 'monthly' ? baseFilteredReports : displayedReports;
+    const uniqueDataset = getUniqueReportsForStats(dataset, questions);
 
-    dataset.forEach(r => {
+    uniqueDataset.forEach(r => {
         let isSaleClosed = false;
         const saleQ = r.answers.find(a => {
             const q = questions.find(qu => qu.id === a.questionId);
@@ -229,7 +233,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
         });
     });
 
-    const totalOps = dataset.length;
+    const totalOps = uniqueDataset.length;
     const conversionRate = totalOps > 0 ? ((closedCount / totalOps) * 100).toFixed(1) : '0';
 
     return { mobilePipeline, mobileSigned, fiberPipeline, fiberSigned, totalMargin, totalOps, closedCount, conversionRate };

@@ -4,6 +4,7 @@ import { StorageService } from '../../services/storageService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Save, Trash2 } from 'lucide-react';
+import { getUniqueReportsForStats } from '../../utils/reportUtils';
 
 interface UserGoalsProps {
   users: User[];
@@ -54,7 +55,9 @@ export const UserGoals: React.FC<UserGoalsProps> = ({ users }) => {
     console.log(`Debug Goal: ${goal.month}, Year: ${year}, Month: ${month}, User: ${goal.userId}`);
     console.log(`Total Reports: ${reports.length}`);
 
-    const filteredReports = reports.filter(r => {
+    const uniqueReports = getUniqueReportsForStats(reports, questions);
+
+    const filteredReports = uniqueReports.filter(r => {
       // r.timestamp is a number (milliseconds).
       const d = new Date(r.timestamp);
       
