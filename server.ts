@@ -36,7 +36,7 @@ async function startServer() {
 
   // Request logger
   app.use((req, res, next) => {
-    console.log(`[DEBUG] Request: ${req.method} ${req.originalUrl}`);
+    console.log(`[DEBUG] Request: ${req.method} ${req.originalUrl} - Body: ${JSON.stringify(req.body)}`);
     next();
   });
 
@@ -46,7 +46,9 @@ async function startServer() {
     console.log("Received request for /api/save-email-config");
     try {
       const { userId, config } = req.body;
+      console.log("Request body:", req.body);
       if (!userId || !config) {
+        console.log("Missing userId or config");
         return res.status(400).json({ error: "Missing userId or config" });
       }
       const encryptedPass = encrypt(config.smtp_pass);
