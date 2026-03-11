@@ -11,8 +11,9 @@ import { GoalCounter } from './components/GoalCounter';
 import { 
   LogOut, Globe, Users, FileText, Settings, Calendar, Folder, 
   MessageCircle, PlusCircle, History, Mail, ClipboardList, Menu, X as CloseIcon, User as UserIcon,
-  ChevronLeft, ChevronRight, Target, AlertCircle
+  ChevronLeft, ChevronRight, Target, AlertCircle, Mail as MailIcon
 } from 'lucide-react';
+import { EmailConfig } from './components/EmailConfig';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -100,6 +101,7 @@ const App: React.FC = () => {
             { id: 'mailpulse', label: 'MailPulse', icon: Mail },
             { id: 'goals', label: 'Mis Objetivos', icon: Target },
             { id: 'claims', label: 'Reclamaciones', icon: AlertCircle },
+            { id: 'email-config', label: 'Config. Correo', icon: MailIcon },
           ];
       }
       
@@ -113,6 +115,7 @@ const App: React.FC = () => {
         { id: 'requests', label: 'Peticiones', icon: ClipboardList },
         { id: 'mailpulse', label: 'MailPulse', icon: Mail },
         { id: 'claims', label: 'Reclamaciones', icon: AlertCircle },
+        { id: 'email-config', label: 'Config. Correo', icon: MailIcon },
       ];
 
       if (user.role === UserRole.SUPERADMIN) {
@@ -274,7 +277,9 @@ const App: React.FC = () => {
       </button>
 
       <main className="flex-1 overflow-y-auto h-screen p-4 md:p-8 bg-gray-50">
-        {currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN ? (
+        {activeTab === 'email-config' ? (
+          <EmailConfig currentUser={currentUser} />
+        ) : currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN ? (
           <AdminDashboard currentUser={currentUser} activeTab={activeTab} />
         ) : (
           <CommercialDashboard currentUser={currentUser} activeTab={activeTab} onSuccess={() => setActiveTab('history')} />

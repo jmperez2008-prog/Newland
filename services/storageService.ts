@@ -426,6 +426,9 @@ export const StorageService = {
       uploaded_by: attachment.uploadedBy
     };
     const { error } = await supabase.from('claim_attachments').insert(dbAttachment);
-    if (error) console.error('Error adding attachment:', error);
+    if (error) {
+        console.error('Error adding attachment:', error);
+        throw error;
+    }
   }
 };

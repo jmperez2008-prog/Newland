@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Claim, ClaimStatus, ClaimAttachment, ClaimMessage } from '../types';
 import { StorageService } from '../services/storageService';
+import { EmailService } from '../services/emailService';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Save, Paperclip, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -58,6 +59,9 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
     setSelectedClaim(updatedClaim);
     setNewMessage('');
     loadData();
+    
+    // Send email
+    await EmailService.sendClaimNotification(updatedClaim, newMessage, 'message');
   };
 
   const handleEditMessage = async (messageId: string) => {
@@ -90,16 +94,24 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
     const file = e.target.files[0];
     const reader = new FileReader();
     reader.onloadend = async () => {
-      const attachment: ClaimAttachment = {
-        id: `att-${Date.now()}`,
-        claimId: selectedClaim.id,
-        fileName: file.name,
-        fileType: file.type,
-        data: reader.result as string,
-        uploadedBy: currentUser.id
-      };
-      await StorageService.addClaimAttachment(attachment);
-      setAttachments([...attachments, attachment]);
+      try {
+        const attachment: ClaimAttachment = {
+          id: `att-${Date.now()}`,
+          claimId: selectedClaim.id,
+          fileName: file.name,
+          fileType: file.type,
+          data: reader.result as string,
+          uploadedBy: currentUser.id
+        };
+        await StorageService.addClaimAttachment(attachment);
+        setAttachments([...attachments, attachment]);
+        
+        // Send email
+        await EmailService.sendClaimNotification(selectedClaim, `Archivo subido: ${file.name}`, 'file');
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        alert('Error al subir el archivo. Es posible que sea demasiado grande.');
+      }
     };
     reader.readAsDataURL(file);
   };
