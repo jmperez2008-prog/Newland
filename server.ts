@@ -33,6 +33,12 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Request logger
+  app.use((req, res, next) => {
+    console.log(`Request: ${req.method} ${req.originalUrl}`);
+    next();
+  });
+
   // API routes
   app.post("/api/save-email-config", async (req, res) => {
     try {
