@@ -2,31 +2,9 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-import crypto from "crypto";
+import { encrypt, decrypt } from "./utils/crypto";
 
 dotenv.config();
-
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
-const keyBuffer = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
-const IV_LENGTH = 16;
-
-function encrypt(text: string) {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
-}
-
-function decrypt(text: string) {
-  const textParts = text.split(':');
-  const iv = Buffer.from(textParts.shift()!, 'hex');
-  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
-}
 
 async function startServer() {
   const app = express();
@@ -36,19 +14,14 @@ async function startServer() {
 
   // Request logger
   app.use((req, res, next) => {
-    console.log(`[DEBUG] Request: ${req.method} ${req.originalUrl} - Body: ${JSON.stringify(req.body)}`);
     next();
   });
 
-  console.log("Registering API routes");
   // API routes
   app.post("/api/save-email-config", async (req, res) => {
-    console.log("Received request for /api/save-email-config");
     try {
       const { userId, config } = req.body;
-      console.log("Request body:", req.body);
       if (!userId || !config) {
-        console.log("Missing userId or config");
         return res.status(400).json({ error: "Missing userId or config" });
       }
       const encryptedPass = encrypt(config.smtp_pass);
