@@ -35,12 +35,14 @@ async function startServer() {
 
   // Request logger
   app.use((req, res, next) => {
-    console.log(`Request: ${req.method} ${req.originalUrl}`);
+    console.log(`[DEBUG] Request: ${req.method} ${req.originalUrl}`);
     next();
   });
 
+  console.log("Registering API routes");
   // API routes
   app.post("/api/save-email-config", async (req, res) => {
+    console.log("Received request for /api/save-email-config");
     try {
       const { userId, config } = req.body;
       if (!userId || !config) {
