@@ -101,6 +101,10 @@ async function startServer() {
   } else {
     // In production, serve static files from dist
     app.use(express.static("dist"));
+    // SPA fallback
+    app.get('*', (req, res) => {
+      res.sendFile(new URL('./dist/index.html', import.meta.url).pathname);
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
