@@ -51,6 +51,15 @@ export const EmailConfig: React.FC<EmailConfigProps> = ({ currentUser }) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: currentUser.id, config })
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Server error:', errorText);
+      alert('Error al guardar: ' + errorText);
+      setSaving(false);
+      return;
+    }
+
     const encryptedConfig = await response.json();
 
     const { error } = await supabase
@@ -59,7 +68,7 @@ export const EmailConfig: React.FC<EmailConfigProps> = ({ currentUser }) => {
 
     if (error) {
       console.error('Error saving config:', error);
-      alert('Error al guardar la configuración.');
+      alert('Error al guardar la configuración en la base de datos.');
     } else {
       alert('Configuración guardada correctamente.');
       loadConfig();

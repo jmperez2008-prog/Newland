@@ -35,28 +35,38 @@ async function startServer() {
 
   // API routes
   app.post("/api/save-email-config", async (req, res) => {
-    const { userId, config } = req.body;
-    const encryptedPass = encrypt(config.smtp_pass);
-    
-    // In a real implementation, we would save this to the DB here
-    // For now, we return the encrypted config to be saved by the frontend
-    res.json({ 
-      user_id: userId,
-      smtp_host: config.smtp_host,
-      smtp_port: config.smtp_port,
-      smtp_user: config.smtp_user,
-      smtp_pass: encryptedPass,
-      smtp_secure: config.smtp_secure
-    });
+    try {
+      const { userId, config } = req.body;
+      if (!userId || !config) {
+        return res.status(400).json({ error: "Missing userId or config" });
+      }
+      const encryptedPass = encrypt(config.smtp_pass);
+      
+      res.json({ 
+        user_id: userId,
+        smtp_host: config.smtp_host,
+        smtp_port: config.smtp_port,
+        smtp_user: config.smtp_user,
+        smtp_pass: encryptedPass,
+        smtp_secure: config.smtp_secure
+      });
+    } catch (error) {
+      console.error("Error in save-email-config:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   });
 
   app.post("/api/send-email", async (req, res) => {
-    const { to, subject, html, smtpConfig } = req.body;
-    
-    // Decrypt password
-    const decryptedPass = decrypt(smtpConfig.pass);
-    
     try {
+      const { to, subject, html, smtpConfig } = req.body;
+      
+      if (!smtpConfig || !smtpConfig.pass) {
+        return res.status(400).json({ error: "Missing SMTP configuration" });
+      }
+
+      // Decrypt password
+      const decryptedPass = decrypt(smtpConfig.pass);
+      
       const transporter = nodemailer.createTransport({
         host: smtpConfig.host,
         port: smtpConfig.port,
