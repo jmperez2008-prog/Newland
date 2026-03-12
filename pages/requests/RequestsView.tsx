@@ -15,6 +15,7 @@ export const RequestsView: React.FC<RequestsViewProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<AppRequest | null>(null);
+  const [activeTab, setActiveTab] = useState<'pending' | 'archived'>('pending');
   
   // New Request Form
   const [newTitle, setNewTitle] = useState('');
@@ -34,6 +35,10 @@ export const RequestsView: React.FC<RequestsViewProps> = ({ currentUser }) => {
     setRequests(data.sort((a, b) => b.createdAt - a.createdAt));
     setLoading(false);
   };
+
+  const pendingRequests = requests.filter(req => req.status === RequestStatus.OPEN);
+  const archivedRequests = requests.filter(req => req.status === RequestStatus.CLOSED);
+  const displayedRequests = activeTab === 'pending' ? pendingRequests : archivedRequests;
 
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,17 +102,52 @@ export const RequestsView: React.FC<RequestsViewProps> = ({ currentUser }) => {
         </button>
       </div>
 
+      <div className="flex gap-6 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`pb-4 text-sm font-medium transition-colors relative ${
+            activeTab === 'pending'
+              ? 'text-[#FF7900]'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Pendientes ({pendingRequests.length})
+          {activeTab === 'pending' && (
+            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#FF7900] rounded-t-full" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('archived')}
+          className={`pb-4 text-sm font-medium transition-colors relative ${
+            activeTab === 'archived'
+              ? 'text-[#FF7900]'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Realizadas / Archivadas ({archivedRequests.length})
+          {activeTab === 'archived' && (
+            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#FF7900] rounded-t-full" />
+          )}
+        </button>
+      </div>
+
       {loading ? (
         <div className="text-center py-12">Cargando peticiones...</div>
-      ) : requests.length === 0 ? (
+      ) : displayedRequests.length === 0 ? (
         <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
           <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 font-medium">No hay peticiones registradas</p>
-          <p className="text-sm text-gray-400 mt-1">Las solicitudes que crees o que debas gestionar aparecerán aquí.</p>
+          <p className="text-gray-500 font-medium">
+            {activeTab === 'pending' ? 'No hay peticiones pendientes' : 'No hay peticiones archivadas'}
+          </p>
+          <p className="text-sm text-gray-400 mt-1">
+            {activeTab === 'pending' 
+              ? 'Las solicitudes que crees o que debas gestionar aparecerán aquí.'
+              : 'Las peticiones que hayan sido resueltas aparecerán aquí.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {requests.map((req) => (
+          {displayedRequests.map((req) => (
             <div 
               key={req.id}
               onClick={() => setSelectedRequest(req)}

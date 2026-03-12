@@ -99,6 +99,13 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
     setSelectedClaim(null);
     setResolution('');
     loadData();
+    
+    // Send email notification for closed claim
+    try {
+      await EmailService.sendClaimNotification(updatedClaim, `Reclamación cerrada. Resolución: ${resolution}`, 'message');
+    } catch (emailError) {
+      console.error('Error sending email notification:', emailError);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,6 +169,13 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
     await StorageService.saveClaim(claim);
     setNewClaim({});
     loadData();
+    
+    // Send email notification for new claim
+    try {
+      await EmailService.sendClaimNotification(claim, `Nueva reclamación creada para: ${claim.companyName}`, 'message');
+    } catch (emailError) {
+      console.error('Error sending email notification:', emailError);
+    }
   };
 
   // Removed handleSaveAllegations

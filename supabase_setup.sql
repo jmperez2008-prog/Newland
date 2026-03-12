@@ -185,3 +185,17 @@ create table if not exists public.claim_attachments (
 alter table public.claim_attachments enable row level security;
 drop policy if exists "Public access claim_attachments" on public.claim_attachments;
 create policy "Public access claim_attachments" on public.claim_attachments for all using (true);
+
+-- 12. Configuraciones de Correo
+create table if not exists public.user_email_configs (
+  user_id text not null primary key,
+  smtp_host text not null,
+  smtp_port integer not null,
+  smtp_user text not null,
+  smtp_pass text not null,
+  smtp_secure boolean not null default true
+);
+
+alter table public.user_email_configs enable row level security;
+drop policy if exists "Public access user_email_configs" on public.user_email_configs;
+create policy "Public access user_email_configs" on public.user_email_configs for all using (true);
