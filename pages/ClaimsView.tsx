@@ -4,7 +4,7 @@ import { StorageService } from '../services/storageService';
 import { EmailService } from '../services/emailService';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { Save, Paperclip, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Save, Paperclip, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 
 interface ClaimsViewProps {
   currentUser: User;
@@ -21,6 +21,7 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [attachments, setAttachments] = useState<ClaimAttachment[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -42,6 +43,17 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
     setResolution(claim.resolution || '');
     const atts = await StorageService.getClaimAttachments(claim.id);
     setAttachments(atts);
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      await StorageService.deleteClaimAttachment(attachmentId);
+      setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+      setShowDeleteConfirm(null);
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      alert('Error al eliminar el archivo.');
+    }
   };
 
   const handleAddMessage = async () => {
@@ -238,18 +250,37 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
                   <h4 className="text-sm font-bold mb-2">Archivos Adjuntos:</h4>
                   <div className="space-y-2">
                     {attachments.map(att => (
-                      <div key={att.id} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
-                        <div className="flex items-center gap-2">
-                          <Paperclip className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm">{att.fileName}</span>
+                      <div key={att.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-gray-50 rounded border gap-2">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                          <span className="text-sm truncate">{att.fileName}</span>
                         </div>
-                        <a 
-                          href={att.data} 
-                          download={att.fileName}
-                          className="text-sm text-blue-600 hover:text-blue-800 underline"
-                        >
-                          Descargar
-                        </a>
+                        <div className="flex items-center gap-3">
+                          <a 
+                            href={att.data} 
+                            download={att.fileName}
+                            className="text-sm text-blue-600 hover:text-blue-800 underline whitespace-nowrap"
+                          >
+                            Descargar
+                          </a>
+                          {(currentUser.id === att.uploadedBy || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN) && (
+                            showDeleteConfirm === att.id ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-red-600 font-medium">¿Eliminar?</span>
+                                <button onClick={() => handleDeleteAttachment(att.id)} className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">Sí</button>
+                                <button onClick={() => setShowDeleteConfirm(null)} className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded hover:bg-gray-300">No</button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowDeleteConfirm(att.id)}
+                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                title="Eliminar archivo"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -433,5 +433,13 @@ export const StorageService = {
         console.error('Error adding attachment:', error);
         throw error;
     }
+  },
+
+  deleteClaimAttachment: async (id: string) => {
+    const { error } = await supabase.from('claim_attachments').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting attachment:', error);
+      throw error;
+    }
   }
 };
