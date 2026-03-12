@@ -221,113 +221,149 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
 
       {selectedClaim && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full space-y-4">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] flex flex-col space-y-4">
             <h3 className="text-lg font-bold">Detalles de la Reclamación: {selectedClaim.companyName}</h3>
             <p><strong>Problema:</strong> {selectedClaim.problem}</p>
             
-            <div className="space-y-4 max-h-60 overflow-y-auto border p-2 rounded">
-              {selectedClaim.messages.map(msg => (
-                <div key={msg.id} className="p-2 bg-gray-100 rounded">
-                  <p className="text-xs font-bold">{msg.userName}</p>
-                  {editingMessageId === msg.id ? (
-                    <div className="flex gap-2">
-                      <input value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full p-1 border rounded" />
-                      <Button onClick={() => handleEditMessage(msg.id)}>Guardar</Button>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between">
-                      <p>{msg.content}</p>
-                      {msg.userId === currentUser.id && (
-                        <Button variant="secondary" onClick={() => { setEditingMessageId(msg.id); setEditContent(msg.content); }}>Editar</Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-              
-              {attachments.length > 0 && (
-                <div className="mt-4 border-t pt-4">
-                  <h4 className="text-sm font-bold mb-2">Archivos Adjuntos:</h4>
-                  <div className="space-y-2">
-                    {attachments.map(att => (
-                      <div key={att.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-gray-50 rounded border gap-2">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                          <span className="text-sm truncate">{att.fileName}</span>
+            <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-0 overflow-hidden">
+              {/* Left Column: Messages */}
+              <div className="flex-1 flex flex-col min-h-0 border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 p-2 border-b font-semibold text-sm">Conversación</div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+                  {selectedClaim.messages.map(msg => (
+                    <div key={msg.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <p className="text-sm font-bold text-gray-700">{msg.userName}</p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(msg.timestamp).toLocaleString('es-ES', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      {editingMessageId === msg.id ? (
+                        <div className="flex gap-2 mt-2">
+                          <input value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full p-1 border rounded text-sm" />
+                          <Button onClick={() => handleEditMessage(msg.id)} className="py-1 px-2 text-xs">Guardar</Button>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <a 
-                            href={att.data} 
-                            download={att.fileName}
-                            className="text-sm text-blue-600 hover:text-blue-800 underline whitespace-nowrap"
-                          >
-                            Descargar
-                          </a>
-                          {(currentUser.id === att.uploadedBy || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN) && (
-                            showDeleteConfirm === att.id ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-red-600 font-medium">¿Eliminar?</span>
-                                <button onClick={() => handleDeleteAttachment(att.id)} className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">Sí</button>
-                                <button onClick={() => setShowDeleteConfirm(null)} className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded hover:bg-gray-300">No</button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setShowDeleteConfirm(att.id)}
-                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
-                                title="Eliminar archivo"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )
+                      ) : (
+                        <div className="flex justify-between items-start mt-1">
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap">{msg.content}</p>
+                          {msg.userId === currentUser.id && (
+                            <button onClick={() => { setEditingMessageId(msg.id); setEditContent(msg.content); }} className="text-xs text-blue-600 hover:text-blue-800 ml-2">Editar</button>
                           )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                    </div>
+                  ))}
+                  {selectedClaim.messages.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">No hay mensajes aún.</p>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* Right Column: Attachments */}
+              <div className="w-full md:w-1/3 flex flex-col min-h-0 border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 p-2 border-b font-semibold text-sm">Archivos Adjuntos</div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-white">
+                  {attachments.length > 0 ? attachments.map(att => (
+                    <div key={att.id} className="flex flex-col p-2 bg-gray-50 rounded border border-gray-200 gap-2">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <span className="text-sm truncate" title={att.fileName}>{att.fileName}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <a 
+                          href={att.data} 
+                          download={att.fileName}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          Descargar
+                        </a>
+                        {(currentUser.id === att.uploadedBy || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN) && (
+                          showDeleteConfirm === att.id ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-red-600">¿Borrar?</span>
+                              <button onClick={() => handleDeleteAttachment(att.id)} className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded">Sí</button>
+                              <button onClick={() => setShowDeleteConfirm(null)} className="text-[10px] bg-gray-200 text-gray-800 px-1.5 py-0.5 rounded">No</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setShowDeleteConfirm(att.id)}
+                              className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+                              title="Eliminar archivo"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-sm text-gray-500 text-center py-4">No hay archivos adjuntos.</p>
+                  )}
+                </div>
+              </div>
             </div>
 
+            {/* Bottom Actions */}
             {selectedClaim.status === ClaimStatus.OPEN && (
-              <>
-                <textarea
-                  className="w-full p-2 border rounded"
-                  placeholder="Nueva respuesta..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                />
-                
-                <input 
-                  type="file" 
-                  onChange={(e) => {
-                    handleFileUpload(e);
-                    e.target.value = ''; // Clear input after selection
-                  }} 
-                  className="text-sm" 
-                />
-
-                <Button onClick={handleAddMessage}>Enviar Respuesta</Button>
+              <div className="flex flex-col gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <textarea
+                    className="flex-1 p-2 border rounded text-sm resize-none"
+                    rows={2}
+                    placeholder="Escribe una respuesta..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                  />
+                  <div className="flex flex-col gap-2 justify-between">
+                    <Button onClick={handleAddMessage} className="whitespace-nowrap h-10">Enviar Respuesta</Button>
+                    <div className="relative">
+                      <input 
+                        type="file" 
+                        id="file-upload"
+                        onChange={(e) => {
+                          handleFileUpload(e);
+                          e.target.value = '';
+                        }} 
+                        className="hidden" 
+                      />
+                      <label htmlFor="file-upload" className="cursor-pointer flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 h-10">
+                        <Paperclip className="w-4 h-4" />
+                        Subir Archivo
+                      </label>
+                    </div>
+                  </div>
+                </div>
 
                 {(currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPERADMIN) && (
-                  <div className="mt-4 border-t pt-4">
-                    <textarea
-                      className="w-full p-2 border rounded"
-                      placeholder="Resolución final..."
+                  <div className="mt-2 border-t pt-4 flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      className="flex-1 p-2 border rounded text-sm"
+                      placeholder="Resolución final para cerrar la reclamación..."
                       value={resolution}
                       onChange={(e) => setResolution(e.target.value)}
                     />
-                    <Button className="mt-2" onClick={handleCloseClaim}>Cerrar Reclamación</Button>
+                    <Button onClick={handleCloseClaim} variant="secondary" className="whitespace-nowrap">Cerrar Reclamación</Button>
                   </div>
                 )}
-              </>
+              </div>
             )}
 
             {selectedClaim.status === ClaimStatus.RESOLVED && (
-              <p className="text-sm text-gray-500 italic">Reclamación cerrada. Resolución: {selectedClaim.resolution}</p>
+              <div className="bg-green-50 text-green-800 p-3 rounded-md border border-green-200 flex items-start gap-2">
+                <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-bold text-sm">Reclamación Cerrada</p>
+                  <p className="text-sm mt-1">{selectedClaim.resolution}</p>
+                </div>
+              </div>
             )}
 
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => setSelectedClaim(null)}>Cerrar</Button>
+            <div className="flex justify-end pt-2 border-t">
+              <Button variant="secondary" onClick={() => setSelectedClaim(null)}>Cerrar Ventana</Button>
             </div>
           </div>
         </div>
