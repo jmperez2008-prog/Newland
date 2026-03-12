@@ -162,8 +162,11 @@ create table if not exists public.claims (
   commercial_id text not null,
   admin_id text not null,
   zone text not null,
-  created_at bigint not null
+  created_at bigint not null,
+  resolution text
 );
+
+alter table public.claims add column if not exists resolution text;
 
 alter table public.claims enable row level security;
 drop policy if exists "Public access claims" on public.claims;

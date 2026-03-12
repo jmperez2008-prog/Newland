@@ -405,7 +405,10 @@ export const StorageService = {
 
   getClaimAttachments: async (claimId: string): Promise<ClaimAttachment[]> => {
     const { data, error } = await supabase.from('claim_attachments').select('*').eq('claim_id', claimId);
-    if (error) return [];
+    if (error) {
+      console.error('Error fetching claim attachments:', error);
+      return [];
+    }
     return data.map((a: any) => ({
       id: a.id,
       claimId: a.claim_id,

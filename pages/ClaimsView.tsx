@@ -92,6 +92,12 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0] || !selectedClaim) return;
     const file = e.target.files[0];
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert('El archivo es demasiado grande. El tamaño máximo permitido es 5MB.');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = async () => {
       try {
@@ -107,10 +113,14 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
         setAttachments(prev => [...prev, attachment]);
         
         // Send email
-        await EmailService.sendClaimNotification(selectedClaim, `Archivo subido: ${file.name}`, 'file');
-      } catch (error) {
+        try {
+          await EmailService.sendClaimNotification(selectedClaim, `Archivo subido: ${file.name}`, 'file');
+        } catch (emailError) {
+          console.error('Error sending email notification:', emailError);
+        }
+      } catch (error: any) {
         console.error('Error uploading file:', error);
-        alert('Error al subir el archivo. Es posible que sea demasiado grande.');
+        alert(`Error al subir el archivo: ${error.message || 'Error desconocido'}. Si el error es sobre tablas faltantes, asegúrate de ejecutar el script SQL en Supabase.`);
       }
     };
     reader.readAsDataURL(file);
