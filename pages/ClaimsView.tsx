@@ -104,7 +104,7 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
           uploadedBy: currentUser.id
         };
         await StorageService.addClaimAttachment(attachment);
-        setAttachments([...attachments, attachment]);
+        setAttachments(prev => [...prev, attachment]);
         
         // Send email
         await EmailService.sendClaimNotification(selectedClaim, `Archivo subido: ${file.name}`, 'file');
@@ -222,6 +222,29 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
                   )}
                 </div>
               ))}
+              
+              {attachments.length > 0 && (
+                <div className="mt-4 border-t pt-4">
+                  <h4 className="text-sm font-bold mb-2">Archivos Adjuntos:</h4>
+                  <div className="space-y-2">
+                    {attachments.map(att => (
+                      <div key={att.id} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                        <div className="flex items-center gap-2">
+                          <Paperclip className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm">{att.fileName}</span>
+                        </div>
+                        <a 
+                          href={att.data} 
+                          download={att.fileName}
+                          className="text-sm text-blue-600 hover:text-blue-800 underline"
+                        >
+                          Descargar
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {selectedClaim.status === ClaimStatus.OPEN && (
@@ -233,7 +256,14 @@ export const ClaimsView: React.FC<ClaimsViewProps> = ({ currentUser }) => {
                   onChange={(e) => setNewMessage(e.target.value)}
                 />
                 
-                <input type="file" onChange={handleFileUpload} className="text-sm" />
+                <input 
+                  type="file" 
+                  onChange={(e) => {
+                    handleFileUpload(e);
+                    e.target.value = ''; // Clear input after selection
+                  }} 
+                  className="text-sm" 
+                />
 
                 <Button onClick={handleAddMessage}>Enviar Respuesta</Button>
 
