@@ -34,7 +34,7 @@ export const CommercialDashboard: React.FC<CommercialDashboardProps> = ({ curren
           {activeTab === 'mailpulse' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <iframe 
-                src="https://mailplus-gull.vercel.app/" 
+                src={`https://mailplus-gull.vercel.app/?replyTo=${encodeURIComponent(currentUser.email || '')}&email=${encodeURIComponent(currentUser.email || '')}&name=${encodeURIComponent(currentUser.name)}`}
                 width="100%" 
                 height="800px" 
                 style={{ border: 'none' }}

@@ -1,26 +1,33 @@
-import { Claim, ClaimAttachment, ClaimMessage } from '../types';
+import { Claim, ClaimAttachment, ClaimMessage, UserRole } from '../types';
 import { supabase } from './supabase';
 
 export const EmailService = {
   sendClaimNotification: async (claim: Claim, message: string, type: 'message' | 'file') => {
-    // 1. Get all interested users (commercial + admin)
+    // 1. Get all interested users (commercial + admin + superadmin)
     const { data: users, error } = await supabase
       .from('app_users')
-      .select('*')
-      .in('id', [claim.commercialId, claim.adminId]);
+      .select('*');
       
     if (error || !users) return;
+
+    const recipients = users.filter(u => 
+      u.id === claim.commercialId || 
+      (u.role === UserRole.ADMIN && u.zone === claim.zone) || 
+      u.role === UserRole.SUPERADMIN
+    );
+
+    const recipientIds = recipients.map(u => u.id);
 
     // 2. Get email configs for these users
     const { data: configs } = await supabase
       .from('user_email_configs')
       .select('*')
-      .in('user_id', [claim.commercialId, claim.adminId]);
+      .in('user_id', recipientIds);
 
     if (!configs) return;
 
     // 3. Send email to each user
-    for (const user of users) {
+    for (const user of recipients) {
       const config = configs.find(c => c.user_id === user.id);
       if (!config || !user.email) continue;
 
