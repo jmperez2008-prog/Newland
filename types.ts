@@ -13,6 +13,7 @@ export interface User {
   zone?: string; // Optional for Superadmin (global), required for others
   phone?: string;
   email?: string;
+  isSuspended?: boolean; // New field for suspension
 }
 
 export enum QuestionType {
@@ -46,6 +47,8 @@ export interface Report {
   aiSummary?: string; // Optional AI insight
   isLostOperation?: boolean;
   lostOperationReason?: string;
+  previousUserId?: string; // ID of the previous commercial
+  previousUserName?: string; // Name of the previous commercial
 }
 
 export interface Appointment {

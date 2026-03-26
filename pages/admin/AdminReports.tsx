@@ -32,6 +32,10 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   
   // Editing State
   const [editingReport, setEditingReport] = useState<Report | null>(null);
+  const [transferringReport, setTransferringReport] = useState<Report | null>(null);
+  const [selectedReports, setSelectedReports] = useState<Set<string>>(new Set());
+  const [transferTargetUserId, setTransferTargetUserId] = useState<string>('');
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [editAnswers, setEditAnswers] = useState<Record<string, string>>({});
   const [editIsLostOperation, setEditIsLostOperation] = useState(false);
   const [editLostOperationReason, setEditLostOperationReason] = useState('');
@@ -54,6 +58,43 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       setQuestions(q);
       setUsers(u);
       setLoading(false);
+  };
+
+  const toggleReportSelection = (reportId: string) => {
+      const newSelection = new Set(selectedReports);
+      if (newSelection.has(reportId)) {
+          newSelection.delete(reportId);
+      } else {
+          newSelection.add(reportId);
+      }
+      setSelectedReports(newSelection);
+  };
+
+  const handleTransfer = async () => {
+      if (!transferTargetUserId) return;
+      const targetUser = users.find(u => u.id === transferTargetUserId);
+      if (!targetUser) return;
+
+      const reportsToTransfer = transferringReport 
+        ? [transferringReport] 
+        : reports.filter(r => selectedReports.has(r.id));
+
+      for (const report of reportsToTransfer) {
+          const updatedReport: Report = {
+              ...report,
+              previousUserId: report.userId,
+              previousUserName: report.userName,
+              userId: targetUser.id,
+              userName: targetUser.name
+          };
+          await StorageService.updateReport(updatedReport);
+      }
+
+      loadData();
+      setSelectedReports(new Set());
+      setIsTransferModalOpen(false);
+      setTransferringReport(null);
+      setTransferTargetUserId('');
   };
 
   // --- FILTERING LOGIC ---
@@ -687,6 +728,11 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
             )}
 
             <div className="flex justify-end gap-2 mb-4">
+                {selectedReports.size > 0 && (
+                    <Button onClick={() => { setIsTransferModalOpen(true); }} variant="secondary">
+                        Transferir {selectedReports.size} Seleccionados
+                    </Button>
+                )}
                 <Button onClick={exportXML} disabled={displayedReports.length === 0} variant="secondary">
                     <Download className="h-4 w-4 mr-2" />
                     Excel
@@ -701,6 +747,16 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                 <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input 
+                            type="checkbox" 
+                            checked={selectedReports.size === displayedReports.length && displayedReports.length > 0}
+                            onChange={() => {
+                                if (selectedReports.size === displayedReports.length) setSelectedReports(new Set());
+                                else setSelectedReports(new Set(displayedReports.map(r => r.id)));
+                            }}
+                        />
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Info Comercial</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
@@ -711,13 +767,20 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {displayedReports.length === 0 && (
-                         <tr><td colSpan={questions.length + 3} className="px-6 py-12 text-center text-gray-500">No hay reportes en esta vista.</td></tr>
+                         <tr><td colSpan={questions.length + 4} className="px-6 py-12 text-center text-gray-500">No hay reportes en esta vista.</td></tr>
                     )}
                     {displayedReports.map((report) => {
                     const author = users.find(u => u.id === report.userId);
                     return (
                         <tr key={report.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
+                                <input 
+                                    type="checkbox" 
+                                    checked={selectedReports.has(report.id)}
+                                    onChange={() => toggleReportSelection(report.id)}
+                                />
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap flex gap-2">
                                 <button 
                                     onClick={() => startEditing(report)}
                                     className="text-gray-400 hover:text-[#FF7900] transition-colors"
@@ -725,10 +788,18 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                                 >
                                     <Edit2 className="h-5 w-5" />
                                 </button>
+                                <button 
+                                    onClick={() => { setTransferringReport(report); setIsTransferModalOpen(true); }}
+                                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="Transferir reporte"
+                                >
+                                    <Briefcase className="h-5 w-5" />
+                                </button>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">{new Date(report.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                             <div className="text-xs text-gray-500 font-bold">{report.userName}</div>
+                            {report.previousUserName && <div className="text-xs text-gray-400 italic">Ant: {report.previousUserName}</div>}
                             <div className="text-xs text-orange-600">{author?.zone || 'N/A'}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -762,6 +833,39 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                 </table>
             </div>
           </>
+      )}
+
+      {/* TRANSFER MODAL */}
+      {isTransferModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                  <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                      <h3 className="text-lg font-bold text-gray-900">Transferir Reportes</h3>
+                      <button onClick={() => { setIsTransferModalOpen(false); setTransferringReport(null); }} className="text-gray-400 hover:text-gray-500">
+                          <X className="h-6 w-6" />
+                      </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                      <p className="text-sm text-gray-600">
+                          Selecciona el comercial al que deseas transferir {transferringReport ? 'este reporte' : `los ${selectedReports.size} reportes seleccionados`}.
+                      </p>
+                      <select
+                          value={transferTargetUserId}
+                          onChange={(e) => setTransferTargetUserId(e.target.value)}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#FF7900] focus:border-[#FF7900]"
+                      >
+                          <option value="">Seleccionar Comercial</option>
+                          {users.filter(u => u.role === UserRole.COMMERCIAL).map(u => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                          ))}
+                      </select>
+                      <div className="flex justify-end gap-3 pt-4">
+                          <Button variant="secondary" onClick={() => { setIsTransferModalOpen(false); setTransferringReport(null); }}>Cancelar</Button>
+                          <Button onClick={handleTransfer} disabled={!transferTargetUserId}>Confirmar Transferencia</Button>
+                      </div>
+                  </div>
+              </div>
+          </div>
       )}
 
       {/* EDIT MODAL */}

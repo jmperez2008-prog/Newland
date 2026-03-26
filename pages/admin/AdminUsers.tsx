@@ -74,7 +74,8 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
       role: newUser.role || UserRole.COMMERCIAL,
       zone: assignedZone,
       phone: newUser.phone,
-      email: newUser.email
+      email: newUser.email,
+      isSuspended: newUser.isSuspended || false
     };
 
     await StorageService.saveUser(user);
@@ -85,6 +86,14 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
   const handleDelete = async (id: string) => {
     if (window.confirm('¿Estás seguro de eliminar este usuario?')) {
       await StorageService.deleteUser(id);
+      loadUsers();
+    }
+  };
+
+  const handleToggleSuspension = async (user: User) => {
+    const action = user.isSuspended ? 'reactivar' : 'suspender';
+    if (window.confirm(`¿Estás seguro de ${action} el acceso a ${user.name}?`)) {
+      await StorageService.saveUser({ ...user, isSuspended: !user.isSuspended });
       loadUsers();
     }
   };
@@ -203,6 +212,13 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
                 </div>
                 {user.role !== UserRole.SUPERADMIN && (
                     <div className="flex items-center gap-2 self-end sm:self-center">
+                        <button 
+                            onClick={() => handleToggleSuspension(user)}
+                            className={`p-2 transition-colors ${user.isSuspended ? 'text-red-600' : 'text-gray-400 hover:text-red-600'}`}
+                            title={user.isSuspended ? "Reactivar Usuario" : "Suspender Usuario"}
+                        >
+                            <Shield className="h-5 w-5" />
+                        </button>
                         <button 
                             onClick={() => handleStartEdit(user)}
                             className="p-2 text-gray-400 hover:text-[#FF7900] transition-colors"
