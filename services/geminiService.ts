@@ -27,7 +27,12 @@ export const GeminiService = {
         body: JSON.stringify({ prompt })
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Server error');
+      if (!response.ok) {
+        if (data.error && data.error.includes("API key not valid")) {
+           return "Error: La API Key configurada no es válida. Por favor, revísala en los ajustes.";
+        }
+        throw new Error(data.error || 'Server error');
+      }
       return data.text || "No se pudo generar el análisis.";
     } catch (error) {
       console.error("Gemini API Error:", error);
@@ -59,7 +64,12 @@ export const GeminiService = {
         body: JSON.stringify({ prompt })
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Server error');
+      if (!response.ok) {
+        if (data.error && data.error.includes("API key not valid")) {
+           return "Error: La API Key configurada no es válida. Por favor, revísala en los ajustes.";
+        }
+        throw new Error(data.error || 'Server error');
+      }
       return data.text || "Sin valoración.";
     } catch (error) {
       console.error("Gemini API Error:", error);

@@ -21,7 +21,7 @@ async function startServer() {
   app.post("/api/gemini/analyze", async (req, res) => {
     try {
       const { prompt } = req.body;
-      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY || "";
       if (!apiKey) {
         return res.status(500).json({ error: "Gemini API Key missing" });
       }
@@ -44,7 +44,7 @@ async function startServer() {
   app.post("/api/gemini/evaluate", async (req, res) => {
     try {
       const { prompt } = req.body;
-      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY || "";
       if (!apiKey) {
         return res.status(500).json({ error: "Gemini API Key missing" });
       }
@@ -58,9 +58,9 @@ async function startServer() {
       });
 
       res.json({ text: response.text });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in /api/gemini/evaluate:", error);
-      res.status(500).json({ error: "Error generating evaluation" });
+      res.status(500).json({ error: error.message || String(error) });
     }
   });
 
