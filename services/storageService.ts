@@ -62,6 +62,8 @@ export const StorageService = {
         timestamp: Number(r.timestamp),
         isLostOperation: r.is_lost_operation,
         lostOperationReason: r.lost_operation_reason,
+        isAccepted: r.is_accepted,
+        isProcessed: r.is_processed,
         previousUserId: r.previous_user_id,
         previousUserName: r.previous_user_name
     })) as Report[];
@@ -77,6 +79,8 @@ export const StorageService = {
         ai_summary: report.aiSummary || null,
         is_lost_operation: report.isLostOperation || false,
         lost_operation_reason: report.lostOperationReason || null,
+        is_accepted: report.isAccepted || false,
+        is_processed: report.isProcessed || false,
         previous_user_id: report.previousUserId || null,
         previous_user_name: report.previousUserName || null
     };
@@ -96,6 +100,8 @@ export const StorageService = {
           ai_summary: report.aiSummary || null,
           is_lost_operation: report.isLostOperation || false,
           lost_operation_reason: report.lostOperationReason || null,
+          is_accepted: report.isAccepted || false,
+          is_processed: report.isProcessed || false,
           previous_user_id: report.previousUserId || null,
           previous_user_name: report.previousUserName || null
       };

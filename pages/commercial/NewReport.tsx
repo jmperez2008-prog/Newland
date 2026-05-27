@@ -18,6 +18,8 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
   const [sending, setSending] = useState(false);
   const [isLostOperation, setIsLostOperation] = useState(false);
   const [lostOperationReason, setLostOperationReason] = useState('');
+  const [isAccepted, setIsAccepted] = useState(false);
+  const [isProcessed, setIsProcessed] = useState(false);
   
   // Duplicate Modal State
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
@@ -66,6 +68,8 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
     setAnswers(newAnswers);
     setIsLostOperation(report.isLostOperation || false);
     setLostOperationReason(report.lostOperationReason || '');
+    setIsAccepted(report.isAccepted || false);
+    setIsProcessed(report.isProcessed || false);
     setIsDuplicateModalOpen(false);
     setSearchQuery('');
   };
@@ -90,12 +94,6 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
         value: value as string
     }));
 
-    // Asegurar que las preguntas requeridas tipo Check que no fueron tocadas (undefined) se envíen si es necesario,
-    // o simplemente confiar en que el usuario debe interactuar. 
-    // Para checkbox, si no está en answers, asumimos "No" si queremos ser estrictos, 
-    // pero aquí solo enviamos lo que el usuario ha tocado explícitamente o rellenamos por defecto.
-    
-    // Rellenar respuestas de checkbox no marcados como 'No' si no existen en el estado
     questions.forEach(q => {
         if (q.type === QuestionType.CHECK && !answers[q.id]) {
             reportAnswers.push({ questionId: q.id, value: 'No' });
@@ -109,7 +107,9 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
         timestamp: Date.now(),
         answers: reportAnswers,
         isLostOperation,
-        lostOperationReason: isLostOperation ? lostOperationReason : undefined
+        lostOperationReason: isLostOperation ? lostOperationReason : undefined,
+        isAccepted,
+        isProcessed
     };
 
     try {
@@ -120,6 +120,8 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
             setAnswers({});
             setIsLostOperation(false);
             setLostOperationReason('');
+            setIsAccepted(false);
+            setIsProcessed(false);
             setSending(false);
             onSuccess();
         }, 2000);
@@ -220,15 +222,68 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
         })}
 
         {/* Operación Perdida Section */}
-        <div className="border-t border-gray-200 pt-6 mt-6">
+        <div className="border-t border-gray-200 pt-6 mt-6 space-y-4">
             <div className="flex items-start">
+                <div className="flex items-center h-5">
+                    <input
+                        id="accepted-operation"
+                        type="checkbox"
+                        className="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300 rounded disabled:opacity-50"
+                        checked={isAccepted}
+                        onChange={(e) => {
+                            setIsAccepted(e.target.checked);
+                            if (e.target.checked) setIsLostOperation(false);
+                        }}
+                        disabled={isLostOperation}
+                    />
+                </div>
+                <div className="ml-3 text-sm">
+                    <label htmlFor="accepted-operation" className={`font-bold select-none cursor-pointer ${isLostOperation ? 'text-gray-400' : 'text-green-700'}`}>
+                        Propuesta Aceptada
+                    </label>
+                    <p className="text-gray-500">Marca esta casilla si el cliente ha aceptado la propuesta.</p>
+                </div>
+            </div>
+
+            <div className="flex items-start">
+                <div className="flex items-center h-5">
+                    <input
+                        id="processed-operation"
+                        type="checkbox"
+                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded disabled:opacity-50"
+                        checked={isProcessed}
+                        onChange={(e) => {
+                            setIsProcessed(e.target.checked);
+                            if (e.target.checked) {
+                                setIsAccepted(true);
+                                setIsLostOperation(false);
+                            }
+                        }}
+                        disabled={isLostOperation}
+                    />
+                </div>
+                <div className="ml-3 text-sm">
+                    <label htmlFor="processed-operation" className={`font-bold select-none cursor-pointer ${isLostOperation ? 'text-gray-400' : 'text-blue-700'}`}>
+                        Propuesta Tramitada
+                    </label>
+                    <p className="text-gray-500">Marca esta casilla si la operación ya ha sido procesada o ejecutada.</p>
+                </div>
+            </div>
+
+            <div className="flex items-start border-t border-gray-100 pt-4 mt-4">
                 <div className="flex items-center h-5">
                     <input
                         id="lost-operation"
                         type="checkbox"
                         className="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded"
                         checked={isLostOperation}
-                        onChange={(e) => setIsLostOperation(e.target.checked)}
+                        onChange={(e) => {
+                            setIsLostOperation(e.target.checked);
+                            if (e.target.checked) {
+                                setIsAccepted(false);
+                                setIsProcessed(false);
+                            }
+                        }}
                     />
                 </div>
                 <div className="ml-3 text-sm">
@@ -240,7 +295,7 @@ export const NewReport: React.FC<NewReportProps> = ({ currentUser, onSuccess }) 
             </div>
 
             {isLostOperation && (
-                <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200 pl-7">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Motivo de la pérdida <span className="text-red-500">*</span>
                     </label>

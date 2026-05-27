@@ -47,6 +47,8 @@ export interface Report {
   aiSummary?: string; // Optional AI insight
   isLostOperation?: boolean;
   lostOperationReason?: string;
+  isAccepted?: boolean; // Propuesta Aceptada
+  isProcessed?: boolean; // Propuesta Tramitada
   previousUserId?: string; // ID of the previous commercial
   previousUserName?: string; // Name of the previous commercial
 }

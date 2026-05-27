@@ -14,7 +14,7 @@ interface AdminReportsProps {
     currentUser: User;
 }
 
-type ViewMode = 'current' | 'archive' | 'monthly' | 'goals';
+type ViewMode = 'current' | 'archive' | 'monthly' | 'goals' | 'accepted' | 'processed';
 
 export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   const [reports, setReports] = useState<Report[]>([]);
@@ -39,6 +39,8 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   const [editAnswers, setEditAnswers] = useState<Record<string, string>>({});
   const [editIsLostOperation, setEditIsLostOperation] = useState(false);
   const [editLostOperationReason, setEditLostOperationReason] = useState('');
+  const [editIsAccepted, setEditIsAccepted] = useState(false);
+  const [editIsProcessed, setEditIsProcessed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const isSuper = currentUser.role === UserRole.SUPERADMIN;
@@ -128,6 +130,14 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
           // Show only reports from current week
           return baseFilteredReports.filter(r => isSameWeek(new Date(r.timestamp), now));
       } 
+      
+      if (viewMode === 'accepted') {
+          return baseFilteredReports.filter(r => r.isAccepted && !r.isLostOperation);
+      }
+      
+      if (viewMode === 'processed') {
+          return baseFilteredReports.filter(r => r.isProcessed && !r.isLostOperation);
+      }
       
       if (viewMode === 'archive' && selectedArchiveWeek) {
           // Show reports from selected historical week
@@ -447,6 +457,8 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       setEditAnswers(initialAnswers);
       setEditIsLostOperation(report.isLostOperation || false);
       setEditLostOperationReason(report.lostOperationReason || '');
+      setEditIsAccepted(report.isAccepted || false);
+      setEditIsProcessed(report.isProcessed || false);
   };
 
   const handleEditChange = (qId: string, val: string) => {
@@ -465,8 +477,6 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       // Ensure required checks are present if missing
       questions.forEach(q => {
           if (q.type === QuestionType.CHECK && !editAnswers[q.id]) {
-               // If existing answer was "Sí", it's in editAnswers. If it was "No" or missing, ensure it's "No"
-               // Check if it was already in the update
                if (!updatedAnswers.find(a => a.questionId === q.id)) {
                    updatedAnswers.push({ questionId: q.id, value: 'No' });
                }
@@ -477,7 +487,9 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
           ...editingReport,
           answers: updatedAnswers,
           isLostOperation: editIsLostOperation,
-          lostOperationReason: editIsLostOperation ? editLostOperationReason : undefined
+          lostOperationReason: editIsLostOperation ? editLostOperationReason : undefined,
+          isAccepted: editIsAccepted,
+          isProcessed: editIsProcessed
       };
 
       try {
@@ -552,6 +564,18 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'current' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
                 Semana Actual
+            </button>
+            <button
+                onClick={() => { setViewMode('accepted'); setSelectedArchiveWeek(null); }}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'accepted' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Aceptadas
+            </button>
+            <button
+                onClick={() => { setViewMode('processed'); setSelectedArchiveWeek(null); }}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'processed' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Tramitadas
             </button>
             <button
                 onClick={() => { setViewMode('archive'); setSelectedArchiveWeek(null); }}
@@ -812,9 +836,17 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                                             {report.lostOperationReason}
                                         </span>
                                     </div>
-                                ) : (
+                                ) : report.isProcessed ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Tramitada
+                                    </span>
+                                ) : report.isAccepted ? (
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        Activa
+                                        Aceptada
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        En marcha
                                     </span>
                                 )}
                             </td>
@@ -941,22 +973,65 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                             );
                         })}
 
-                        {/* Edit Operación Perdida */}
-                        <div className="border-t border-gray-200 pt-4 mt-4">
+                        {/* Edit Operación Statuses */}
+                        <div className="border-t border-gray-200 pt-4 mt-4 space-y-3">
                             <div className="flex items-center">
+                                <input
+                                    id={`admin-edit-accepted-${editingReport.id}`}
+                                    type="checkbox"
+                                    className="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300 rounded disabled:opacity-50"
+                                    checked={editIsAccepted}
+                                    onChange={(e) => {
+                                        setEditIsAccepted(e.target.checked);
+                                        if (e.target.checked) setEditIsLostOperation(false);
+                                    }}
+                                    disabled={editIsLostOperation}
+                                />
+                                <label htmlFor={`admin-edit-accepted-${editingReport.id}`} className={`ml-2 text-sm font-bold ${editIsLostOperation ? 'text-gray-400' : 'text-green-700'}`}>
+                                    Marcar como Propuesta Aceptada
+                                </label>
+                            </div>
+
+                            <div className="flex items-center">
+                                <input
+                                    id={`admin-edit-processed-${editingReport.id}`}
+                                    type="checkbox"
+                                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded disabled:opacity-50"
+                                    checked={editIsProcessed}
+                                    onChange={(e) => {
+                                        setEditIsProcessed(e.target.checked);
+                                        if (e.target.checked) {
+                                            setEditIsAccepted(true);
+                                            setEditIsLostOperation(false);
+                                        }
+                                    }}
+                                    disabled={editIsLostOperation}
+                                />
+                                <label htmlFor={`admin-edit-processed-${editingReport.id}`} className={`ml-2 text-sm font-bold ${editIsLostOperation ? 'text-gray-400' : 'text-blue-700'}`}>
+                                    Marcar como Propuesta Tramitada
+                                </label>
+                            </div>
+
+                            <div className="flex items-center border-t border-gray-100 pt-3">
                                 <input
                                     id={`admin-edit-lost-${editingReport.id}`}
                                     type="checkbox"
                                     className="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded"
                                     checked={editIsLostOperation}
-                                    onChange={(e) => setEditIsLostOperation(e.target.checked)}
+                                    onChange={(e) => {
+                                        setEditIsLostOperation(e.target.checked);
+                                        if (e.target.checked) {
+                                            setEditIsAccepted(false);
+                                            setEditIsProcessed(false);
+                                        }
+                                    }}
                                 />
                                 <label htmlFor={`admin-edit-lost-${editingReport.id}`} className="ml-2 text-sm font-bold text-red-700">
                                     Marcar como Operación Perdida
                                 </label>
                             </div>
                             {editIsLostOperation && (
-                                <div className="mt-2">
+                                <div className="mt-2 pl-6">
                                     <label className="block text-xs font-medium text-gray-700 mb-1">Motivo de la pérdida *</label>
                                     <textarea
                                         className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
