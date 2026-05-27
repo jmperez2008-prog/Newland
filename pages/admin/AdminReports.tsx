@@ -3,11 +3,12 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Report, Question, User, UserRole, QuestionType, ReportAnswer } from '../../types';
 import { StorageService } from '../../services/storageService';
+import { GeminiService } from '../../services/geminiService';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getWeekNumber, getWeekRange, isSameWeek, getMonthName } from '../../utils/dateUtils';
 import { getUniqueReportsForStats } from '../../utils/reportUtils';
-import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi, Target } from 'lucide-react';
+import { Download, TrendingUp, Smartphone, Phone, Euro, CheckCircle2, Folder, Calendar, PieChart, Edit2, X, Save, Briefcase, Wifi, Target, Loader2 } from 'lucide-react';
 import { UserGoals } from './UserGoals';
 
 interface AdminReportsProps {
@@ -26,6 +27,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('current');
   const [selectedArchiveWeek, setSelectedArchiveWeek] = useState<string | null>(null);
   const [selectedArchiveMonth, setSelectedArchiveMonth] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null); // Stores monthKey being generated
 
   // Filters
   const [selectedZone, setSelectedZone] = useState<string>('all');
@@ -482,6 +484,114 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
     doc.save(`reporte_${viewMode}_${now.toISOString().slice(0,10)}.pdf`);
   };
 
+  const generateMonthlyDetailedPDF = async (monthKey: string) => {
+    setIsGeneratingPdf(monthKey);
+    try {
+        const [year, month] = monthKey.split('-').map(Number);
+        const monthName = getMonthName(month);
+        
+        // 1. Get reports for this month
+        const monthReports = baseFilteredReports.filter(r => {
+            const d = new Date(r.timestamp);
+            return d.getFullYear() === year && d.getMonth() === month;
+        });
+
+        const doc = new jsPDF();
+        const dateStr = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        // TITLE 
+        doc.setFontSize(18);
+        doc.setTextColor(255, 121, 0); 
+        doc.text(`Informe Mensual Detallado - ${monthName} ${year}`, 14, 20);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Emitido el: ${dateStr}`, 14, 28);
+        doc.text(`Comerciales Activos: ${new Set(monthReports.map(r => r.userId)).size}`, 14, 33);
+
+        // GLOBAL VALUATION
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text('1. Valoración Global del Mes', 14, 45);
+        
+        const globalEval = await GeminiService.generateEvaluation(monthReports, questions, 'global');
+        doc.setFontSize(10);
+        doc.setTextColor(60);
+        const splitGlobal = doc.splitTextToSize(globalEval, 180);
+        doc.text(splitGlobal, 14, 52);
+        
+        let currentY = 52 + (splitGlobal.length * 5) + 10;
+
+        // COMMERCIAL VALUATIONS
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text('2. Desempeño por Comercial', 14, currentY);
+        currentY += 10;
+
+        const commercialIds = Array.from(new Set(monthReports.map(r => r.userId)));
+        
+        for (const cId of commercialIds) {
+            if (currentY > 260) { doc.addPage(); currentY = 20; }
+            const cUser = users.find(u => u.id === cId);
+            const cName = cUser ? cUser.name : 'Desconocido';
+            const cReports = monthReports.filter(r => r.userId === cId);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(255, 121, 0);
+            doc.text(`• ${cName}`, 14, currentY);
+            currentY += 6;
+            
+            const cEval = await GeminiService.generateEvaluation(cReports, questions, 'individual', cName);
+            doc.setFontSize(10);
+            doc.setTextColor(80);
+            const splitCEval = doc.splitTextToSize(cEval, 180);
+            doc.text(splitCEval, 14, currentY);
+            currentY += (splitCEval.length * 5) + 6;
+        }
+
+        // ADD COMPANIES (TABLE)
+        if (currentY > 220) { doc.addPage(); currentY = 20; }
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text('3. Desglose de Operaciones', 14, currentY);
+        currentY += 6;
+
+        const tableHead = [['Día', 'Comercial', 'Estado', ...questions.map(q => q.text)]];
+        const tableBody = monthReports.map(r => {
+            const date = new Date(r.timestamp).toLocaleDateString('es-ES', { day: '2-digit' });
+            let estado = r.isLostOperation ? 'Perdida' : (r.isProcessed ? 'Tramitada' : (r.isAccepted ? 'Aceptada' : 'Marcha'));
+            
+            const answers = questions.map(q => {
+                const ans = r.answers.find(a => a.questionId === q.id);
+                let val = ans ? String(ans.value) : '-';
+                if (q.type === QuestionType.CURRENCY && ans) val += '€';
+                return val;
+            });
+            return [date, r.userName, estado, ...answers];
+        });
+
+        autoTable(doc, {
+            startY: currentY,
+            head: tableHead,
+            body: tableBody,
+            theme: 'grid',
+            headStyles: { fillColor: [60, 60, 60] },
+            styles: { fontSize: 7, cellPadding: 1, overflow: 'linebreak' },
+            columnStyles: { 
+                0: { cellWidth: 10 },
+                1: { cellWidth: 20 },
+                2: { cellWidth: 15 }
+            }
+        });
+
+        doc.save(`informe_detallado_${monthName}_${year}.pdf`);
+    } catch (err) {
+        console.error("Error generando PDF mensual:", err);
+        alert("Ocurrió un error al generar el PDF. Verifica la consola.");
+    } finally {
+        setIsGeneratingPdf(null);
+    }
+  };
+
   // --- EDITING HANDLERS ---
   const startEditing = (report: Report) => {
       setEditingReport(report);
@@ -776,11 +886,12 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Margen</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ventas Cerradas</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Éxito</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {monthlyStats.length === 0 && (
-                            <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-500">No hay datos suficientes.</td></tr>
+                            <tr><td colSpan={8} className="px-6 py-12 text-center text-gray-500">No hay datos suficientes.</td></tr>
                         )}
                         {monthlyStats.map((stat) => (
                             <tr key={`${stat.year}-${stat.month}`} className="hover:bg-gray-50">
@@ -795,6 +906,21 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {stat.totalOps > 0 ? ((stat.closedOps / stat.totalOps) * 100).toFixed(1) : 0}%
                                 </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <Button 
+                                        size="sm" 
+                                        variant="secondary"
+                                        onClick={() => generateMonthlyDetailedPDF(`${stat.year}-${stat.month}`)}
+                                        disabled={isGeneratingPdf === `${stat.year}-${stat.month}`}
+                                        title="Generar Informe Detallado con IA"
+                                    >
+                                        {isGeneratingPdf === `${stat.year}-${stat.month}` ? (
+                                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generando...</>
+                                        ) : (
+                                            <><Download className="h-4 w-4 mr-2 text-[#FF7900]" /> PDF Detallado</>
+                                        )}
+                                    </Button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -807,8 +933,8 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
           <UserGoals users={users} />
       )}
 
-      {/* VIEW: TABLE LIST (Used for 'current' and specific 'archive' week) */}
-      {(viewMode === 'current' || (viewMode === 'archive' && selectedArchiveWeek)) && (
+      {/* VIEW: TABLE LIST (Used for 'current', 'accepted', 'processed' and specific 'archive' week) */}
+      {(viewMode === 'current' || viewMode === 'accepted' || viewMode === 'processed' || (viewMode === 'archive' && selectedArchiveWeek)) && (
           <>
             {/* View Header with Back Button if Archive */}
             {viewMode === 'archive' && (
