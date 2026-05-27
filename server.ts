@@ -18,6 +18,52 @@ async function startServer() {
   });
 
   // API routes
+  app.post("/api/gemini/analyze", async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Gemini API Key missing" });
+      }
+
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+      });
+
+      res.json({ text: response.text });
+    } catch (error) {
+      console.error("Error in /api/gemini/analyze:", error);
+      res.status(500).json({ error: "Error generating analysis" });
+    }
+  });
+
+  app.post("/api/gemini/evaluate", async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Gemini API Key missing" });
+      }
+
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+      });
+
+      res.json({ text: response.text });
+    } catch (error) {
+      console.error("Error in /api/gemini/evaluate:", error);
+      res.status(500).json({ error: "Error generating evaluation" });
+    }
+  });
+
   app.post("/api/save-email-config", async (req, res) => {
     try {
       const { userId, config } = req.body;

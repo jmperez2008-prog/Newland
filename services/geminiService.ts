@@ -1,21 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
 import { Report, Question } from "../types";
-
-// Declare process for TypeScript in case @types/node is missing
-declare const process: { env: { [key: string]: string | undefined } };
 
 export const GeminiService = {
   analyzeReports: async (reports: Report[], questions: Question[]): Promise<string> => {
-    // API key must be obtained exclusively from process.env.API_KEY
-    const apiKey = process.env.API_KEY;
-    
-    if (!apiKey) {
-        console.warn("Gemini API Key missing. Please set API_KEY in your environment.");
-        return "El análisis de IA no está disponible (Falta configuración de API Key).";
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-
     // Format data for the prompt
     const reportsText = reports.map((r, i) => {
         const answersText = r.answers.map(a => {
@@ -35,23 +21,21 @@ export const GeminiService = {
     `;
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
+      const response = await fetch('/api/gemini/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
       });
-      return response.text || "No se pudo generar el análisis.";
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Server error');
+      return data.text || "No se pudo generar el análisis.";
     } catch (error) {
-      console.error("Gemini Error:", error);
+      console.error("Gemini API Error:", error);
       return "Hubo un error al conectar con la IA para el análisis.";
     }
   },
 
   generateEvaluation: async (reports: Report[], questions: Question[], type: 'global' | 'individual', commercialName?: string): Promise<string> => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) return "Análisis no disponible (Falta API Key).";
-
-    const ai = new GoogleGenAI({ apiKey });
-
     const totalOps = reports.length;
     let closedSales = 0;
     reports.forEach(r => {
@@ -69,13 +53,16 @@ export const GeminiService = {
       : `Actúa como chief sales officer. Escribe un párrafo muy breve y directo valorando el desempeño individual de ${commercialName} este mes. Operaciones intentadas: ${totalOps}. Éxitos: ${closedSales} (${conversionRate}% conversión). Si sus datos son muy bajos, incentívalo; si son altos, felicítalo efusivamente.`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
+      const response = await fetch('/api/gemini/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
       });
-      return response.text || "Sin valoración.";
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Server error');
+      return data.text || "Sin valoración.";
     } catch (error) {
-      console.error("Gemini Error:", error);
+      console.error("Gemini API Error:", error);
       return "Hubo un error al conectar con la IA.";
     }
   }
