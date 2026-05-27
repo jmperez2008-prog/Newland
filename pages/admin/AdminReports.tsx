@@ -25,6 +25,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
   // View Control
   const [viewMode, setViewMode] = useState<ViewMode>('current');
   const [selectedArchiveWeek, setSelectedArchiveWeek] = useState<string | null>(null);
+  const [selectedArchiveMonth, setSelectedArchiveMonth] = useState<string | null>(null);
 
   // Filters
   const [selectedZone, setSelectedZone] = useState<string>('all');
@@ -132,11 +133,27 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       } 
       
       if (viewMode === 'accepted') {
-          return baseFilteredReports.filter(r => r.isAccepted && !r.isLostOperation);
+          return baseFilteredReports.filter(r => {
+              if (!r.isAccepted || r.isLostOperation) return false;
+              const d = new Date(r.timestamp);
+              if (selectedArchiveMonth) {
+                  const [year, month] = selectedArchiveMonth.split('-').map(Number);
+                  return d.getFullYear() === year && d.getMonth() === month;
+              }
+              return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          });
       }
       
       if (viewMode === 'processed') {
-          return baseFilteredReports.filter(r => r.isProcessed && !r.isLostOperation);
+          return baseFilteredReports.filter(r => {
+              if (!r.isProcessed || r.isLostOperation) return false;
+              const d = new Date(r.timestamp);
+              if (selectedArchiveMonth) {
+                  const [year, month] = selectedArchiveMonth.split('-').map(Number);
+                  return d.getFullYear() === year && d.getMonth() === month;
+              }
+              return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          });
       }
       
       if (viewMode === 'archive' && selectedArchiveWeek) {
@@ -176,6 +193,28 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
       });
 
       return Object.values(folders).sort((a,b) => (b.year * 100 + b.week) - (a.year * 100 + a.week));
+  }, [baseFilteredReports]);
+
+  const historicalMonths = useMemo(() => {
+      const months = new Set<string>();
+      const now = new Date();
+      baseFilteredReports.forEach(r => {
+          const d = new Date(r.timestamp);
+          if (d.getFullYear() !== now.getFullYear() || d.getMonth() !== now.getMonth()) {
+              // Only past months
+              months.add(`${d.getFullYear()}-${d.getMonth()}`);
+          }
+      });
+      return Array.from(months)
+          .sort((a, b) => {
+              const [yA, mA] = a.split('-').map(Number);
+              const [yB, mB] = b.split('-').map(Number);
+              return yB !== yA ? yB - yA : mB - mA;
+          })
+          .map(k => {
+              const [y, m] = k.split('-').map(Number);
+              return { key: k, label: `${getMonthName(m)} ${y}`, year: y, month: m };
+          });
   }, [baseFilteredReports]);
 
   const monthlyStats = useMemo(() => {
@@ -560,37 +599,37 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
         {/* View Switcher */}
         <div className="flex bg-gray-100 p-1 rounded-lg">
             <button
-                onClick={() => { setViewMode('current'); setSelectedArchiveWeek(null); }}
+                onClick={() => { setViewMode('current'); setSelectedArchiveWeek(null); setSelectedArchiveMonth(null); }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'current' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
                 Semana Actual
             </button>
             <button
-                onClick={() => { setViewMode('accepted'); setSelectedArchiveWeek(null); }}
+                onClick={() => { setViewMode('accepted'); setSelectedArchiveWeek(null); setSelectedArchiveMonth(null); }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'accepted' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
                 Aceptadas
             </button>
             <button
-                onClick={() => { setViewMode('processed'); setSelectedArchiveWeek(null); }}
+                onClick={() => { setViewMode('processed'); setSelectedArchiveWeek(null); setSelectedArchiveMonth(null); }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'processed' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
                 Tramitadas
             </button>
             <button
-                onClick={() => { setViewMode('archive'); setSelectedArchiveWeek(null); }}
+                onClick={() => { setViewMode('archive'); setSelectedArchiveWeek(null); setSelectedArchiveMonth(null); }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'archive' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
                 Archivo Semanal
             </button>
             <button
-                onClick={() => { setViewMode('monthly'); setSelectedArchiveWeek(null); }}
+                onClick={() => { setViewMode('monthly'); setSelectedArchiveWeek(null); setSelectedArchiveMonth(null); }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'monthly' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
                 Resumen Mensual
             </button>
             <button
-                onClick={() => { setViewMode('goals'); setSelectedArchiveWeek(null); }}
+                onClick={() => { setViewMode('goals'); setSelectedArchiveWeek(null); setSelectedArchiveMonth(null); }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'goals' ? 'bg-white text-[#FF7900] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
                 <Target className="h-4 w-4 inline mr-1" />
@@ -686,6 +725,38 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ currentUser }) => {
                       </button>
                   ))}
               </div>
+          </div>
+      )}
+
+      {/* MONTH SELECTOR FOR ACCEPTED/PROCESSED STATUSES */}
+      {(viewMode === 'accepted' || viewMode === 'processed') && (
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-wrap gap-2 items-center animate-in fade-in slide-in-from-top-2">
+              <h4 className="text-sm font-bold text-gray-700 mr-2 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-[#FF7900]" /> Filtrar por Mes:
+              </h4>
+              <button
+                  onClick={() => setSelectedArchiveMonth(null)}
+                  className={`px-4 py-2 text-sm rounded-md border transition-colors ${
+                      !selectedArchiveMonth
+                      ? 'bg-[#FF7900] text-white border-[#FF7900] shadow-md font-bold'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-orange-50 hover:border-orange-200 hover:text-[#FF7900]'
+                  }`}
+              >
+                  Mes Actual
+              </button>
+              {historicalMonths.map((monthData) => (
+                  <button
+                      key={monthData.key}
+                      onClick={() => setSelectedArchiveMonth(monthData.key)}
+                      className={`px-4 py-2 text-sm rounded-md border transition-colors ${
+                          selectedArchiveMonth === monthData.key
+                          ? 'bg-[#FF7900] text-white border-[#FF7900] shadow-md font-bold'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-orange-50 hover:border-orange-200 hover:text-[#FF7900]'
+                      }`}
+                  >
+                      {monthData.label}
+                  </button>
+              ))}
           </div>
       )}
 
